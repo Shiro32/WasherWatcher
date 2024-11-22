@@ -2,84 +2,114 @@ import socket
 import threading
 import time
 
-HOST = '192.168.11.20'  # Raspberry PiのIPアドレス
+#HOST = '192.168.11.25'  # サーバのアドレス
 PORT = 65432
 
 comm_status = "close"
 count = 0
 
-# 非同期でデータ受信をひたすら待つ
-def receive_message(s):
-	global comm_status
+COMM_GET_WASHER_STATUS = "get_washer_status"
+COMM_BEGIN_RAIN_ALERT = "begin_rain_alert"
+COMM_END_RAIN_ALERT = "end_rain_alert"
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 非同期でデータ受信をひたすら待つ
+def receive_message_thread():
+	global comm_status, comm_socket, washer_status
+
+	# 通信が確保されている→受信待ちを続ける
+	# 通信ができない→スレッド終了
 	while True:
 		try:
-			data = s.recv(1024)	# ココデブロッキング
+			# 相手からの受信待ち（ブロッキング）
+			data = comm_socket.recv(1024)
 			if not data:
-				print("クライアントが接続を終了しました。")
+				print("相手が接続を終了しました。")
 				break
 
-			print(f"【受信】 {data.decode()}")
+			data = data.decode()
+
+			print(f"【受信】 {data}")
+
+			if "hoge" in data:
+				send_message( "なんや？" )
+			if "rain" in data:
+				send_message( "雨降り了解！")
+
 		except ConnectionResetError:
-			print("接続がクライアントによってリセットされました。")
+			print("相手によって接続がリセットされました。")
 			break
 		except Exception as e:
 			print(f"その他のエラーが発生しました: {e}")
 			break
 
-	# whileループの外側
-	s.close()
+	# 通信をやめてスレッドを終了する
+	comm_socket.close()
 	comm_status = "close"
 
-
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 非同期でデータ送信
-def send_message(sock):
-	global comm_status, count
+def send_message_thread(msg):
+	global comm_status, comm_socket
 
-	while True:
-		time.sleep(2)
-		count+=1
+	try:
+		if not comm_socket: # クライアントの接続が存在しない場合
+			print("親の接続がありません。")
+		else:
+			#print( f"【送信】:{msg}" )
+			comm_socket.sendall(f"{msg}".encode())
+			return
 
-		try:
-			if not sock: # クライアントの接続が存在しない場合
-				print("親の接続がありません。")
-				break
+	except BrokenPipeError:
+		print("サーバが接続を終了しました")
 
-			print( f"【送信】子→親{count}" )
-			sock.sendall(f"子→親{count}".encode())
-
-		except BrokenPipeError:  # この例外をキャッチ
-			print("親が接続を終了しました。メッセージの送信ができません。")
-			break
-		except Exception as e:
-			print(f"メッセージ送信時にエラーが発生しました: {e}")
-			break
+	except Exception as e:
+		print(f"メッセージ送信時にエラーが発生しました: {e}")
 	
-	sock.close()
+	# 通信をやめてスレッドを終了する
+	comm_socket.close()
 	comm_status = "close"
-		
+
+def send_message( msg ):
+	global comm_socket
+
+	threading.Thread(target=send_message_thread, args=(msg,)).start()
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def make_connection():
+	global comm_status, comm_socket
+
+	# 一度起動したら決して終了しないで、ずっと通信回線管理
+	while True:
+		time.sleep(1)
+
+		if( comm_status=="close"):
+			host = socket.gethostbyname("zero2.local")
+			print(f"Connecting {host}...", end=" " )
+			comm_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			
+			try:
+
+				comm_socket.connect((host, PORT))
+				print( "接続完了！" )
+				comm_status = "open"
+
+				# 受信用スレッドを起動
+				threading.Thread(target=receive_message_thread, args=()).start() 
+
+			except:
+				print("まだや")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 通信回線確立スレッド
+threading.Thread(target=make_connection, args=()).start()
+time.sleep(5)
 
 while True:
-
-	#接続処理
-	if( comm_status=="close"):
-		print("再接続・・・", end=" " )
-
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		
-		try:
-			sock.connect((HOST, PORT))
-			print( "接続完了！" )
-			comm_status = "open"
-
-			# 受信用と送信用のスレッドを起動
-			threading.Thread(target=receive_message, args=(sock,)).start() 
-			threading.Thread(target=send_message, args=(sock,)).start()
-
-		except:
-			print("まだや")
-
-	time.sleep(5)
-	#print( f"【SOCKET】{comm_status}" )
+	msg = input( "サーバーへのメッセージ：" )
+	if msg:
+		send_message(msg)
 
 
