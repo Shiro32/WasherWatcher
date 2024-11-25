@@ -61,6 +61,7 @@ import numpy as np
 
 from cfg import *   # 定数関係
 import globals as g
+import comm
 import clock
 
 # ------------------------------------------------------------------------------

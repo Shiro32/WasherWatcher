@@ -34,6 +34,21 @@ LED_ON					= 1
 LED_BLINK_SHORT = 2
 LED_BLINK_LONG	= 3
 
+# --------------------- 子機とのSOCKET通信 ---------------------
+
+# 雨情報（=twilite接点そのもの）
+COMM_RAIN_ON	= "rain_on"
+COMM_RAIN_OFF	= "rain_off"
+
+# 食洗器状況やりとり
+COMM_WASHER_REQUEST	= "washer_request"	# 状態取得リクエスト
+COMM_WASHER_EMPTY	= "washer_empty"	# 空っぽ
+COMM_WASHER_UNSET	= "washer_unset"	# 未セット（要洗浄）
+COMM_WASHER_STANDBY	= "washer_standby"	# タイマーセット済み
+COMM_WASHER_WASHING	= "washer_washing"	# 洗浄中
+COMM_WASHER_DONE	= "washer_done"		# 洗浄完了
+
+
 # --------------------- フロントボタン関係のタイマ ---------------------
 # 各種タイマ（マイクロセカンド単位）
 PUSH_LONGPRESS_TIME_ms			= 1  * 1000 # 1秒
@@ -107,15 +122,6 @@ clockLargeFont		= ImageFont.truetype( 'segment-bold.ttf', 65 )
 clockNormalFont 	= ImageFont.truetype( 'Font.ttc', 32)
 
 menu_font  			= ImageFont.truetype( 'Font.ttc', 20)
-
-# ------------------------------------------------------------------------------
-# デバイス間通信
-
-# デバイス間で依頼する際のキーワード（なんでもいいんだけど）
-COMM_GET_WASHER_STATUS	= "get_washer_status"	# 食洗器の状態確認
-COMM_BEGIN_RAIN_ALERT	= "begin_rain_alert"	# 雨降りはじめ警報
-COMM_END_RAIN_ALERT		= "end_rain_alert"		# その終了
-
 
 # ------------------------------------------------------------------------------
 
