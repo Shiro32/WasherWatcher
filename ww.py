@@ -61,6 +61,8 @@ import numpy as np
 
 from cfg import *   # 定数関係
 import globals as g
+
+import rain
 import comm
 import clock
 
@@ -81,7 +83,6 @@ draw_normal_fujikyun_counter = 1000
 
 
 # ------------------------------------------------------------------------------
-
 def update_display():
 	"""画面更新のポータル
 
@@ -102,9 +103,9 @@ def update_display():
 	
 	# 各画面モードに応じたメイン画面更新を行う
 	# どれも表示バッファをクリアして、描画するところから始める
-#	if disp_mode==DISP_MODE_NORMAL and update_counter>=DISP_MODE_NORMAL_UPDATE_INTERVAL :
-#		g.clear_image(); update_counter = 0
-#		draw_normal()
+	if disp_mode==DISP_MODE_NORMAL and update_counter>=DISP_MODE_NORMAL_UPDATE_INTERVAL :
+		g.clear_image(); update_counter = 0
+		draw_normal()
 	
 #	elif disp_mode==DISP_MODE_USEFUL and update_counter>=DISP_MODE_USEFUL_UPDATE_INTERVAL :
 #		g.clear_image(); update_counter = 0
@@ -141,7 +142,7 @@ def update_display():
 #			g.draw_sbar.text( SBAR_CLOCK_POS, "{0:.1f}°C".format(g.newest_temp), fill="black", font=menu_font )
 
 		# 各ウェザーモードでの追加描画（ポップアップ、雨・晴れアイコン）を行う
-#		rain.update_weather()
+		rain.update_weather()
 
 		g.epd_display()		# ディスプレイへのFLUSH
 
@@ -150,8 +151,51 @@ def update_display():
 
 
 # ------------------------------------------------------------------------------
-_dev_print_h = 18
-_dev_print_y = 40
+
+draw_normal_old_fujikyun = ""
+
+def draw_normal()->None:
+	"""【モード1】ノーマル表示（水分量に応じて、ふじきゅんを描き分ける）
+
+	どうやって変化をつけるか・・・？
+	水分量＞閾値　：　楽しそうな絵を数枚回す（呼ばれるたびにランダム？）
+	水分量＜閾値　：　飢餓っぽい絵を数枚回す
+
+	急速に水をもらった時の処理は、センサー側でupdate_display_immediatelyを呼ぶ？
+	恒常的な湿潤ではなく、水をもらった感謝的なポップアップはどうする？
+	update側で処理できるか？
+	"""
+
+	global draw_normal_fujikyun_counter, draw_normal_old_fujikyun
+
+	g.log("draw_normal", "begin")
+
+	draw_normal_fujikyun_counter+=1
+
+
+
+	if( draw_normal_fujikyun_counter>FUJIKYUN_UPDATE_INTERVAL_t ):
+		draw_normal_fujikyun_counter = 0
+		draw_normal_old_fujikyun = PICS_NORMAL[ rnd(len(PICS_NORMAL)) ]
+
+	if draw_normal_old_fujikyun!="":	g.image_main_buf.paste( draw_normal_old_fujikyun )
+
+	# この後、四隅に数字などをチマチマ記載予定
+	# TODO: 稼働状態を何らかの表示で示す必要あり？？
+	# SBARもあるのでほどほどに
+	# とりあえず土壌水分量を書いてみよう
+	# 絵が見にくくなる・・・ので、たまにだけ描く？
+	#g.draw_main.text( MODE_NORMAL_MOIST_POS, "{:3d}%".format(int(g.newest_moist)), "red", font=digitalLargeFont )
+
+
+# ------------------------------------------------------------------------------
+(_dev_print_h, _dev_print_y) = (18,40)
+
+def _print_one(label:str, msg:str):
+	global _dev_print_y
+
+	g.draw_main.text( (0, _dev_print_y), "{:12}: {}".format(label,msg), font=info_content_font, fill="black" )
+	_dev_print_y += _dev_print_h
 
 def display_device_info():
 	"""【モード4】デバイス情報表示
@@ -189,14 +233,11 @@ def display_device_info():
 	_print_one( "sleep mode"	, sleep_mode_label[g.sleep_mode] )
 	_print_one( "time mode"		, time_mode_label[g.time_mode] )
 
+	_print_one( "Weather GPIO"	,str( comm.check_rain_status() ) )
+	_print_one( "weather mode"	,weather_mode_label[rain.rain_mode] )
+
 	#_print_one( "Weather GPIO"		, str(pi.read(RAIN_PIN)) )
 	#_print_one( "weather mode"		, weather_mode_label[rain.rain_mode] )
-
-def _print_one(label:str, msg:str):
-	global _dev_print_y
-
-	g.draw_main.text( (0, _dev_print_y), "{:12}: {}".format(label,msg), font=info_content_font, fill="black" )
-	_dev_print_y += _dev_print_h
 
 #------------------------------------------------------------------------
 # ここから先はサブルーチン的な処理
@@ -210,7 +251,7 @@ def init_at_boot()->None:
 	"""	
 	global disp_mode
 
-	disp_mode = DISP_MODE_DEVICE_INFO
+	disp_mode = DISP_MODE_NORMAL
 
 	# スクリーンセーバー
 	g.reset_screen_saver()
@@ -218,11 +259,10 @@ def init_at_boot()->None:
 	g.setBackLight( g.EPD_BACKLIGHT_SW_SAVER, True )
 
 	# オープニング
-	g.talk( voice_opening1, TALK_FORCE )
+#	g.talk( voice_opening1, TALK_FORCE )
 	g.check_IP_address()
 
 	# 各種自動実行のスケジューリング開始
-#	schedule.every(5).seconds.do(m.check_soil_moist)									# 土壌水分抵抗
 #	schedule.every(SENSING_INTERVAL_s)		.seconds.do(read_sensors)		# センサ計測
 
 	schedule.every(DISP_UPDATE_INTERVAL_s).seconds.do(update_display) # 画面更新（最短10秒）
@@ -236,9 +276,14 @@ def init_at_boot()->None:
 	g.init_front_button()
 	g.init_switchs()
 
+	# 通信回線
+	comm.init_comm()
+
 	# 初回描画は早めに（ちっとも早くならないけど）
 	g.update_display_immediately()
-	g.talk( voice_opening2, TALK_FORCE)
+#	g.talk( voice_opening2, TALK_FORCE)
+	g.talk( "hoge", TALK_FORCE )
+
 # ------------------------------- main -------------------------------
 if __name__ == "__main__":
 
@@ -255,10 +300,12 @@ if __name__ == "__main__":
 			# ダイアログ表示時のボタン処理
 			g.check_dialog()
 
+			# 雨チェックが頻繁過ぎるのでとりあえずオフ（2023/9/7）
+			rain.check_weather()	# 雨降りチェック（tweliteのGPIOポーリングでやっている）
+
 			# 画面更新を即時実施してもらいたい場合の処理
 			# メインファイル（flower.py）以外から頼むときは、フラグでやっている # TODO: なんとかならんか？
 			if( g.update_display_immediately_flag ):
-				print("hoge")
 				update_display()
 
 
@@ -278,14 +325,10 @@ if __name__ == "__main__":
 				g.reset_front_button_status()
 
 				# 現在の次のモードへ遷移
-				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_TREND, DISP_MODE_MODE4, DISP_MODE_CLOCK, DISP_MODE_DEVICE_INFO][(disp_mode+1)%5]
+				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_CLOCK, DISP_MODE_USEFUL, DISP_MODE_DEVICE_INFO][(disp_mode+1)%4]
+#				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_TREND, DISP_MODE_MODE4, DISP_MODE_CLOCK, DISP_MODE_DEVICE_INFO][(disp_mode+1)%5]
 				g.update_display_immediately()
 
-			## 超ロングプレス（省電力モード）
-			#if btn==PUSH_SUPER_LONGPRESS:
-			#	g.front_button_sound()
-			#	g.reset_front_button_status()
-			#	g.power_save_mode()
 
 			# 最長ロングプレス（電源オフ）
 			if btn==PUSH_SUPER_LONGPRESS:

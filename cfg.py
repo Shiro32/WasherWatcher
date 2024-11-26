@@ -17,12 +17,12 @@ from PIL import Image,ImageDraw,ImageFont
 
 #TODO:正しい値に★
 
-FRONT_BTN_PIN	= 13		# いろいろ使うメインボタン
-FRONT_LED_PIN	= 12	# 前面のLED
+FRONT_BTN_PIN	= 12		# いろいろ使うメインボタン
+FRONT_LED_PIN	= 16	# 前面のLED
 SLIDE_SW_PIN	= 18	# 背面のスライドスイッチ（音声？）
 
 # センサー
-CDS_PIN			= 20	# 明暗検出CDSのGPIOピン(in)
+CDS_PIN			= 26	# 明暗検出CDSのGPIOピン(in)
 PIR_PIN			= 21	# 人感センサーピン
 
 
@@ -37,8 +37,8 @@ LED_BLINK_LONG	= 3
 # --------------------- 子機とのSOCKET通信 ---------------------
 
 # 雨情報（=twilite接点そのもの）
-COMM_RAIN_ON	= "rain_on"
-COMM_RAIN_OFF	= "rain_off"
+COMM_RAIN_LOW	= "rain_low"	# LOW  = 雨（濡れている）
+COMM_RAIN_HIGH	= "rain_high"	# HIGH = 晴れ（乾いている）
 
 # 食洗器状況やりとり
 COMM_WASHER_REQUEST	= "washer_request"	# 状態取得リクエスト
@@ -224,6 +224,28 @@ ICON_SAD_MAC			= Image.open( "icon/icon_sad.bmp" )
 ICON_RAIN					= Image.open( "icon/icon_rain.png")
 
 # ------------------------------------------------------------------------------
+# 各種イラスト
+
+PIC_RAIN		= Image.open( "face/rain.jpg" )
+PIC_NORMAL1 = Image.open( "face/normal1.jpg" )
+PIC_NORMAL2 = Image.open( "face/normal2.jpg" )
+PIC_NORMAL3 = Image.open( "face/normal3.jpg" )
+PIC_NORMAL4 = Image.open( "face/normal4.jpg" )
+PIC_NORMAL5 = Image.open( "face/normal5.jpg" )
+PIC_NORMAL6 = Image.open( "face/normal6.jpg" )
+PIC_NORMAL7 = Image.open( "face/normal7.jpg" )
+PIC_NORMAL8 = Image.open( "face/normal8.jpg" )
+PIC_NORMAL9 = Image.open( "face/normal9.jpg" )
+PIC_NORMAL10 = Image.open( "face/normal10.jpg" )
+PIC_NORMAL11 = Image.open( "face/normal11.jpg" )
+PIC_NORMAL12 = Image.open( "face/normal12.jpg" )
+PICS_NORMAL = [
+	PIC_NORMAL1, PIC_NORMAL2, PIC_NORMAL3, PIC_NORMAL4,
+	PIC_NORMAL5, PIC_NORMAL6, PIC_NORMAL7, PIC_NORMAL8,
+	PIC_NORMAL9, PIC_NORMAL10, PIC_NORMAL11, PIC_NORMAL12
+]
+
+# ------------------------------------------------------------------------------
 # 汎用ダイアログ関係
 
 DIALOG_POS		= (50, 30)
@@ -231,6 +253,10 @@ DIALOG_TIMER	= 30	# １回あたりのダイアログ表示秒
 
 # ------------------------------------------------------------------------------
 # MODE1（ノーマル表示）関係
+# メインふじきゅんの変更タイマ
+# MODE1のインターバル（30秒程度）×この回数で更新
+FUJIKYUN_UPDATE_INTERVAL_t = 20
+
 MODE_NORMAL_MOIST_POS = (40, 150)
 
 # ------------------------------------------------------------------------------h

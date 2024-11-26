@@ -27,6 +27,20 @@ PORT = 65432
 
 comm_status = "close"	# 通信回線を表す内部変数（socketで見れないのか？）
 
+# --------------------- 子機とのSOCKET通信 ---------------------
+# 子機から情報が来ると、commモジュールでこれらの値をセット
+# メインモジュールでポーリングして各種処理のトリガーとする
+
+comm_twelite_status = pigpio.HIGH	# 子機のtwelite（雨）の状態
+comm_washer_request = False			# 子機からの食洗器状態リクエスト
+
+
+def check_rain_status()->bool:
+	return comm_twelite_status
+
+def check_washer_request()->int:
+	return comm_washer_request
+
 # ------------------------------------------------------------------------------
 def _receive_message_thread()->None:
 	"""子機からのソケット通信を受信する
@@ -36,12 +50,14 @@ def _receive_message_thread()->None:
 	"""
 
 	global comm_status, comm_socket
+	global comm_twelite_status, comm_washer_request
 
 	# 通信が確保されている→受信待ちを続ける
 	# 通信ができない→スレッド終了
 	while True:
 		try:
 			# 相手からの受信待ち（ブロッキング）
+			g.log("COMM RECV", "受信待ち開始")
 			data = comm_socket.recv(1024)
 			if not data:
 				g.log( "COMM RECV","相手から通信切断")
@@ -51,14 +67,17 @@ def _receive_message_thread()->None:
 			g.log( "COMM RECV", data )
 
 			# 受信データによってさまざまな処理フラグを立てる
-			if data==COMM_RAIN_ON:
-				g.comm_twelite_status = 1
-			elif data==COMM_RAIN_OFF:
-				g.comm_twelite_status = 0
+			if data==COMM_RAIN_LOW:
+				comm_twelite_status = pigpio.LOW
+
+			elif data==COMM_RAIN_HIGH:
+				comm_twelite_status = pigpio.HIGH
+
 			elif data==COMM_WASHER_REQUEST:
-				g.comm_washer_request = 1
+				g.comm_washer_request = True
+
 			else:
-				g.log( "COMM RECV", f"知らないメッセージ{data}")
+				g.log( "COMM RECV", f"知らないメッセージ:{data}")
 
 			# 受信処理が終了し、またsocket.recvに戻って待機
 		except ConnectionResetError:
@@ -103,27 +122,30 @@ def _make_connection_thread():
 	"""通信回線確立スレッド
 	・子機との通信回線を維持するためのスレッド（メインとは別スレッド）
 	・起動時に一度だけ呼ばれて、以降はずっと回線維持に務める
+	・回線が確立（＝子機から接続）するまでブロックされ、接続出来たら受信スレッド立ち上げ
 	"""
 	global comm_status, comm_socket
 
 	# 一度起動したら決して終了しないで、ずっと通信回線管理
 	while True:
-		time.sleep(1)
-
 		if( comm_status=="close"):
-			g.log("COMM CONNECT", "Connecting...", end=" ")
+			g.log("COMM CONNECT", "子機と接続待ち...")
 			comm_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 			comm_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			comm_socket.bind((HOST, PORT))	#バインディング
 			comm_socket.listen()			#接続待ち
-			comm_socket,adr= comm_socket.accept()	#接続確立（ここは非ブロッキング）
+
+			comm_socket,adr= comm_socket.accept()	#接続されるまで、ここでブロッキング
 			g.log("COMM CONNECT", "接続完了！")
 			comm_status = "open"
 
 			# 受信用スレッドを起動
 			# （送信用スレッドは実際にメッセージ送信時に起動する）
 			threading.Thread(target=_receive_message_thread, args=()).start() 
+
+		# whileの最後（過剰なループ防止に２秒タイマ）
+		time.sleep(2)
 
 # ------------------------------------------------------------------------------
 def send_message( msg:str )->None:
