@@ -15,9 +15,8 @@ from PIL import Image,ImageDraw,ImageFont
 
 # --------------------- GPIOピン Setup ---------------------
 
-#TODO:正しい値に★
 
-FRONT_BTN_PIN	= 12		# いろいろ使うメインボタン
+FRONT_BTN_PIN	= 12	# いろいろ使うメインボタン
 FRONT_LED_PIN	= 16	# 前面のLED
 SLIDE_SW_PIN	= 18	# 背面のスライドスイッチ（音声？）
 
@@ -29,8 +28,8 @@ PIR_PIN			= 21	# 人感センサーピン
 # --------------------- すべてのタイマ基準の元祖 ---------------------
 TIMER_TICK		= 0.05	# タイムの最小単位。メインループのsleep値なので微妙
 
-LED_OFF					= 0
-LED_ON					= 1
+LED_OFF			= 0
+LED_ON			= 1
 LED_BLINK_SHORT = 2
 LED_BLINK_LONG	= 3
 
@@ -47,6 +46,25 @@ COMM_WASHER_UNSET	= "washer_unset"	# 未セット（要洗浄）
 COMM_WASHER_STANDBY	= "washer_standby"	# タイマーセット済み
 COMM_WASHER_WASHING	= "washer_washing"	# 洗浄中
 COMM_WASHER_DONE	= "washer_done"		# 洗浄完了
+
+# --------------------- 食洗器関係の定数 ---------------------
+
+# 食器有無
+
+# ドア
+WASHER_DOOR_OPEN	= 1
+WASHER_DOOR_CLOSE	= 2
+
+# 予約
+WASHER_TIMER_OFF	= 1	# 予約されていない
+WASHER_TIMER_2H		= 2	# 2時間タイマー
+WASHER_TIMER_4H		= 3 # 4時間タイマー
+WASHER_TIMER_NOW	= 4 # 洗浄中（出番無いカモ）
+
+WASHER_CAP_TRIM_TOP		= 1/3*2
+WASHER_CAP_TRIM_BOTTOM	= 1/3*3
+WASHER_CAP_TRIM_LEFT	= 1/3*1
+WASHER_CAP_TRIM_RIGHT	= 1/3*2
 
 
 # --------------------- フロントボタン関係のタイマ ---------------------
@@ -312,5 +330,7 @@ set_pull_up_down( SLIDE_SW_PIN, pigpio.PUD_UP )
 set_pull_up_down( FRONT_BTN_PIN, pigpio.PUD_UP )
 
 # CDS（明暗）
-set_pull_up_down( CDS_PIN, pigpio.PUD_UP )
 set_pull_up_down( PIR_PIN, pigpio.PUD_DOWN )
+#set_pull_up_down( CDS_PIN, pigpio.PUD_UP )
+pi.set_mode( CDS_PIN, pigpio.INPUT )
+pi.set_pull_up_down( CDS_PIN, pigpio.PUD_OFF )

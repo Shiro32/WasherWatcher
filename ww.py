@@ -43,21 +43,21 @@
 #・天候チェック
 #・モードＳＷ
 
+print("起動開始！")
+
 import sys
 import time
 import subprocess
 import datetime
-import random
-from random import randrange as rnd
+#import random
+#from random import randrange as rnd
 
 
 import schedule
 import os
-import requests # ThingSpeak用
 import ipget
 
 import traceback
-import numpy as np
 
 from cfg import *   # 定数関係
 import globals as g
@@ -65,6 +65,9 @@ import globals as g
 import rain
 import comm
 import clock
+#import washer
+
+print("各種import終了")
 
 # ------------------------------------------------------------------------------
 # 各種音声
@@ -189,6 +192,8 @@ def draw_normal()->None:
 
 
 # ------------------------------------------------------------------------------
+
+print("ここ大丈夫か？")
 (_dev_print_h, _dev_print_y) = (18,40)
 
 def _print_one(label:str, msg:str):
@@ -284,9 +289,11 @@ def init_at_boot()->None:
 #	g.talk( voice_opening2, TALK_FORCE)
 	g.talk( "hoge", TALK_FORCE )
 
+
 # ------------------------------- main -------------------------------
 if __name__ == "__main__":
 
+	print("ようやく軌道！")
 	init_at_boot()
 
 
@@ -318,6 +325,7 @@ if __name__ == "__main__":
 					g.update_display_immediately()
 					g.front_button_sound()
 					g.reset_front_button_status()
+					washer.check_washer_now()
 
 			# ロングプレス（モードチェンジ）
 			if btn==PUSH_LONGPRESS:
