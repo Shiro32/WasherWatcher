@@ -49,8 +49,8 @@ import sys
 import time
 import subprocess
 import datetime
-#import random
-#from random import randrange as rnd
+import random
+from random import randrange as rnd
 
 
 import schedule
@@ -59,13 +59,15 @@ import ipget
 
 import traceback
 
+print("公式import終了")
+
 from cfg import *   # 定数関係
 import globals as g
 
 import rain
 import comm
 import clock
-#import washer
+import washer
 
 print("各種import終了")
 

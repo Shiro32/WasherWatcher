@@ -17,8 +17,8 @@ import requests
 import re
 import unicodedata
 from bs4 import BeautifulSoup
-import globals as g
 from cfg import *
+import globals as g
 import datetime
 from random import randrange as rnd
 

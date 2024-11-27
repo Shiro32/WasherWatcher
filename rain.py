@@ -242,7 +242,6 @@ def check_weather()->None:
 
 	#お休みモード処理
 	g.check_sleep()
-	print( f"CDS:{pi.read(CDS_PIN)}")
 	
 	# 通常のメイン処理（モードによって４パターン）
 	old_rain_mode = rain_mode
