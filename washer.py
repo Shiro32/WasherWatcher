@@ -22,6 +22,19 @@ from typing import Tuple
 from cfg import *   # 定数関係
 import globals as g # グローバル変数・関数
 
+
+# テンプレート写真
+TEMP_LIGHT_OFF	= "light_off_template.png"	# 予約なし
+TEMP_LIGHT_2H	= "light_2h_template.png"	# ２ｈ予約
+TEMP_LIGHT_4H	= "light_4h_template.png"	# ４ｈ予約
+
+# テンプレートとマッチングの最低閾値
+TEMP_MATCHING_THRESHOULD = 0.90
+
+# 食洗器撮影
+CAPTURE_SIZE_H	= 2592
+CAPTURE_SIZE_V	= 1944
+
 # --------------------- washer内のグローバル変数 ---------------------
 
 # 食洗器の状態
@@ -31,13 +44,20 @@ washer_timer		= WASHER_TIMER_OFF
 
 # ------------------------------------------------------------------------------
 def capture_washer()->np.ndarray:
+	"""
+	カメラモジュールで食洗器を撮影する
+	（戻り値） トリミング加工された写真（np.ndarray）
+
+	・フルサイズで撮影する
+	・左右の真ん中、上下の下半分にトリミングする
+	"""
+
 	g.log( "WASHER","写真撮影")
 
 	picam = Picamera2()
 	picam.configure(
 		picam.create_preview_configuration(
-			main={"format": 'XRGB8888', "size": (640, 480)    }))
-#			main={"format": 'XRGB8888', "size": (2592, 1944)    }))
+			main={"format": 'XRGB8888', "size": (CAPTURE_SIZE_H, CAPTURE_SIZE_V)}))
 
 	# 撮影
 	picam.start()
@@ -119,27 +139,36 @@ def check_washer_now()->None:
 	"""
 	g.log( "WASHER","食洗器チェック")
 
+	# 写真を撮影
 	img = capture_washer()
 
-	results = []
+	# 3パターン（オフ、2H、4H）でパターンマッチングして、一番スコアの高いものを採用
+	results = [] # {ドア状態、タイマー状態、相関値}
 
-	corr, zoom = pattern_matching( img, "light_off_template.png", 130)
-	results.append( {"STATUS":"OPEN  & OFF", "ZOOM":zoom, "CORR":corr} )
+	# タイマー０
+	corr, zoom = pattern_matching( img, TEMP_LIGHT_OFF, 130)
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom==100 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_OFF, "CORR":corr} )
+	# タイマー2H
+	corr, zoom = pattern_matching( img, TEMP_LIGHT_2H, 130)
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom==100 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_2H, "CORR":corr} )
+	# タイマー4H
+	corr, zoom = pattern_matching( img, TEMP_LIGHT_4H, 130)
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom==100 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_4H, "CORR":corr} )
 
-	corr, zoom = pattern_matching( img, "light_2h_template.png", 130)
-	results.append( {"STATUS":"OPEN  & 2H ", "ZOOM":zoom, "CORR":corr} )
-
-	corr, zoom = pattern_matching( img, "light_4h_template.png", 130)
-	results.append( {"STATUS":"OPEN  & 4H ", "ZOOM":zoom, "CORR":corr} )
-
-	#結果整理
+	#昇順ソート
 	results = sorted(results, key=lambda x:x["CORR"], reverse=True)
 
 	for x in results:
-		status = x["STATUS"]
+		door = x["DOOR"]
+		timer = x["TIMER"]
 		corr = x["CORR"]
-		zoom = x["ZOOM"]
 
-		print( f"{status} / {corr:.3f} / {zoom}")
+		g.log( "WASHER", f"DOOR:{door} / TIMER:{timer} / {corr:.3f} / {zoom}" )
 
+	# 一致度が最低ラインを下回っていたら、素直に「分からない」と回答
+	if results[0]["CORR"] < TEMP_MATCHING_THRESHOULD:
+		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
+	
 	return WASHER_DOOR_CLOSE, WASHER_TIMER_OFF
+
+
