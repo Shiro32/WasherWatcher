@@ -291,6 +291,9 @@ def init_at_boot()->None:
 #	g.talk( voice_opening2, TALK_FORCE)
 	g.talk( "hoge", TALK_FORCE )
 
+	washer.preview_washser()
+	#door, timer = washer.check_washer_now()
+	#print( f"{door=} / {timer=}" )
 
 # ------------------------------- main -------------------------------
 if __name__ == "__main__":
@@ -327,7 +330,6 @@ if __name__ == "__main__":
 					g.update_display_immediately()
 					g.front_button_sound()
 					g.reset_front_button_status()
-					washer.check_washer_now()
 
 			# ロングプレス（モードチェンジ）
 			if btn==PUSH_LONGPRESS:
@@ -342,21 +344,22 @@ if __name__ == "__main__":
 
 			# 最長ロングプレス（電源オフ）
 			if btn==PUSH_SUPER_LONGPRESS:
-				g.front_button_sound()
-				g.reset_front_button_status()
+				washer.preview_washser()
+				#g.front_button_sound()
+				#g.reset_front_button_status()
 
-				g.talk( voice_shutdown1, TALK_FORCE, True)
-				g.clear_image()
-				g.image_buf.paste( ICON_BYE_MAC, (0,0) )
-				g.epd_display( False )
+				#g.talk( voice_shutdown1, TALK_FORCE, True)
+				#g.clear_image()
+				#g.image_buf.paste( ICON_BYE_MAC, (0,0) )
+				#g.epd_display( False )
 
-				g.log( "SHUTDOWN" )
-				g.talk( voice_shutdown2, TALK_FORCE, True )
-				g.talk( voice_shutdown3, TALK_FORCE, False )
+				#g.log( "SHUTDOWN" )
+				#g.talk( voice_shutdown2, TALK_FORCE, True )
+				#g.talk( voice_shutdown3, TALK_FORCE, False )
 
-				pi.stop()
-				os.system( "sudo shutdown now" )
-				sys.exit()
+				#pi.stop()
+				#os.system( "sudo shutdown now" )
+				#sys.exit()
 
 	except KeyboardInterrupt:
 		print( "bye" )

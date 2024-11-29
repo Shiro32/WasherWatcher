@@ -63,11 +63,6 @@ WASHER_TIMER_2H		= 2	# 2時間タイマー
 WASHER_TIMER_4H		= 3 # 4時間タイマー
 WASHER_TIMER_NOW	= 4 # 洗浄中（出番無いカモ）
 
-WASHER_CAP_TRIM_TOP		= 1/3*2
-WASHER_CAP_TRIM_BOTTOM	= 1/3*3
-WASHER_CAP_TRIM_LEFT	= 1/3*1
-WASHER_CAP_TRIM_RIGHT	= 1/3*2
-
 
 # --------------------- フロントボタン関係のタイマ ---------------------
 # 各種タイマ（マイクロセカンド単位）

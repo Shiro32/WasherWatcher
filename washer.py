@@ -24,20 +24,31 @@ import globals as g # グローバル変数・関数
 
 
 # テンプレート写真
-TEMP_LIGHT_OFF	= "light_off_template.png"	# 予約なし
-TEMP_LIGHT_2H	= "light_2h_template.png"	# ２ｈ予約
-TEMP_LIGHT_4H	= "light_4h_template.png"	# ４ｈ予約
+TEMP_LIGHT_OFF	= "./pattern/light_off_template.png"	# 予約なし
+TEMP_LIGHT_2H	= "./pattern/light_2h_template.png"	# ２ｈ予約
+TEMP_LIGHT_4H	= "./pattern/light_4h_template.png"	# ４ｈ予約
 
 # テンプレートとマッチングの最低閾値
 TEMP_MATCHING_THRESHOULD = 0.90
 
 # 食洗器撮影
-CAPTURE_SIZE_H	= 2592
-CAPTURE_SIZE_V	= 1944
+CAPTURE_WIDTH	= 2592
+CAPTURE_HEIGHT	= 1944
+CAPTURE_ASPECT	= CAPTURE_WIDTH/CAPTURE_HEIGHT	# アスペクトレシオ1.3くらい
+
+PREVIEW_WIDTH	= MAIN_WIDTH
+PREVIEW_HEIGHT	= int(PREVIEW_WIDTH/CAPTURE_ASPECT)
+
+WASHER_CAP_TRIM_TOP		= 1/2*1
+WASHER_CAP_TRIM_BOTTOM	= 1/2*2
+
+WASHER_CAP_TRIM_LEFT	= 1/4*1
+WASHER_CAP_TRIM_RIGHT	= 1/4*3
 
 # --------------------- washer内のグローバル変数 ---------------------
 
-# 食洗器の状態
+# 食洗器の状態（状態を保持し続けるためにグローバル化）
+# 暗くなる or 子機から問われた時はこれをもとに回答
 washer_dirty_dishes	= False
 washer_door			= WASHER_DOOR_CLOSE
 washer_timer		= WASHER_TIMER_OFF
@@ -57,7 +68,7 @@ def capture_washer()->np.ndarray:
 	picam = Picamera2()
 	picam.configure(
 		picam.create_preview_configuration(
-			main={"format": 'XRGB8888', "size": (CAPTURE_SIZE_H, CAPTURE_SIZE_V)}))
+			main={"format": 'XRGB8888', "size": (CAPTURE_WIDTH, CAPTURE_HEIGHT)}))
 
 	# 撮影
 	picam.start()
@@ -167,8 +178,55 @@ def check_washer_now()->None:
 
 	# 一致度が最低ラインを下回っていたら、素直に「分からない」と回答
 	if results[0]["CORR"] < TEMP_MATCHING_THRESHOULD:
+		g.log("WASHER","判定できず")
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
+
+	# 一致が見つかっているならそれを返す
+	else:
+		g.log("WASHER", f"発見！（DOOR:{results[0]['DOOR']}/TIMER{results[0]['TIMER']}）")
+		return results[0]["DOOR"], results[0]["TIMER"]
+
+
+def preview_washser()->None:
+	g.log( "WASHER","プレビュー")
+
+	picam = Picamera2(0)
+	picam.configure(
+		picam.create_preview_configuration(
+			main={"format": 'XRGB8888', "size": (PREVIEW_WIDTH, PREVIEW_HEIGHT)}))
+
+	# 撮影開始
+	picam.start()
+
+	while True:
+		img = picam.capture_array()
+		img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
+		## トリミング
+		#w = img.shape[1]
+		#h = img.shape[0]
+		#img = img[
+		#	int(h*WASHER_CAP_TRIM_TOP) :int(h*WASHER_CAP_TRIM_BOTTOM),
+		#	int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
+		
+		img = Image.fromarray(img)
+		draw = ImageDraw.Draw(img)
+		draw.rectangle((
+			int(PREVIEW_WIDTH *WASHER_CAP_TRIM_LEFT),
+			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_TOP),
+			int(PREVIEW_WIDTH *WASHER_CAP_TRIM_RIGHT),
+			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_BOTTOM)),
+			outline=(255,255,255))
+
+		draw.text( (40, 160), "ボタンでプレビュー終了", font=info_title_font, fill="black" )
+
+		g.image_main_buf.paste( img )
+		g.epd_display()
+		if g.front_button_status()==PUSH_1CLICK: break
+
+	picam.stop()
+	picam.close()
+
+	g.log("WASER","プレビュー終了")
+
 	
-	return WASHER_DOOR_CLOSE, WASHER_TIMER_OFF
-
-
