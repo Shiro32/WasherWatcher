@@ -22,7 +22,7 @@ from typing import Tuple
 from cfg import *   # 定数関係
 import globals as g # グローバル変数・関数
 
-
+# --------------------- washer内の定数 ---------------------
 # テンプレート写真
 TEMP_LIGHT_OFF	= "./pattern/light_off_template.png"	# 予約なし
 TEMP_LIGHT_2H	= "./pattern/light_2h_template.png"	# ２ｈ予約
@@ -31,14 +31,16 @@ TEMP_LIGHT_4H	= "./pattern/light_4h_template.png"	# ４ｈ予約
 # テンプレートとマッチングの最低閾値
 TEMP_MATCHING_THRESHOULD = 0.90
 
-# 食洗器撮影
+# 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 2592
 CAPTURE_HEIGHT	= 1944
 CAPTURE_ASPECT	= CAPTURE_WIDTH/CAPTURE_HEIGHT	# アスペクトレシオ1.3くらい
 
+# プレビューサイズ
 PREVIEW_WIDTH	= MAIN_WIDTH
 PREVIEW_HEIGHT	= int(PREVIEW_WIDTH/CAPTURE_ASPECT)
 
+# 撮影写真のトリミング領域（実際のパターンマッチングに使うのは狭い領域なので）
 WASHER_CAP_TRIM_TOP		= 1/2*1
 WASHER_CAP_TRIM_BOTTOM	= 1/2*2
 
@@ -148,6 +150,7 @@ def check_washer_now()->None:
 	　x : ドアの状態（open/close）
 	　y : タイマの状態（off/2h/4h/now）
 	"""
+
 	g.log( "WASHER","食洗器チェック")
 
 	# 写真を撮影
@@ -186,8 +189,17 @@ def check_washer_now()->None:
 		g.log("WASHER", f"発見！（DOOR:{results[0]['DOOR']}/TIMER{results[0]['TIMER']}）")
 		return results[0]["DOOR"], results[0]["TIMER"]
 
-
+# ------------------------------------------------------------------------------
 def preview_washser()->None:
+	"""
+	カメラのプレビューを表示する
+
+	・LCDサイズに縮小して表示
+	・実際に撮影される写真と同じアスペクトレシオ
+	・パターンマッチングで利用する領域を枠
+	・フロントボタンを押すことで終了
+	"""
+
 	g.log( "WASHER","プレビュー")
 
 	picam = Picamera2(0)
