@@ -51,6 +51,8 @@ COMM_WASHER_DONE	= "washer_done"		# 洗浄完了
 
 # 食器有無
 
+WASHER_STATUS_UNKNOWN = -1	# 状態がわからない（撮影ミスなど）
+
 # ドア
 WASHER_DOOR_OPEN	= 1
 WASHER_DOOR_CLOSE	= 2
