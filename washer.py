@@ -123,13 +123,13 @@ def check_washer_now()->None:
 
 	results = []
 
-	corr, zoom = pattern_matching( img, "light_off_template.png", 130)
+	corr, zoom = pattern_matching( img, "./pattern/light_off_template.png", 130)
 	results.append( {"STATUS":"OPEN  & OFF", "ZOOM":zoom, "CORR":corr} )
 
-	corr, zoom = pattern_matching( img, "light_2h_template.png", 130)
+	corr, zoom = pattern_matching( img, "./pattern/light_2h_template.png", 130)
 	results.append( {"STATUS":"OPEN  & 2H ", "ZOOM":zoom, "CORR":corr} )
 
-	corr, zoom = pattern_matching( img, "light_4h_template.png", 130)
+	corr, zoom = pattern_matching( img, "./pattern/light_4h_template.png", 130)
 	results.append( {"STATUS":"OPEN  & 4H ", "ZOOM":zoom, "CORR":corr} )
 
 	#結果整理
