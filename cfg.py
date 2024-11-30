@@ -130,9 +130,9 @@ largeFont  			= ImageFont.truetype( 'mplus-1mn-light.ttf', 50)
 
 digitalLargeFont	= ImageFont.truetype( 'segment-std.otf', 80 )
 digitalPressFont	= ImageFont.truetype( 'segment-std.otf', 68 )
-digitalMiddleFont	= ImageFont.truetype( 'segment-std.otf', 32 )
+digitalMiddleFont	= ImageFont.truetype( 'segment-bold.ttf', 44 )
 digitalSmallFont	= ImageFont.truetype( 'segment-std.otf', 18 )
-unitFont			= ImageFont.truetype( 'Font.ttc', 18)
+unitFont			= ImageFont.truetype( 'Font.ttc', 20)
 
 clockLargeFont		= ImageFont.truetype( 'segment-bold.ttf', 65 )
 clockNormalFont 	= ImageFont.truetype( 'Font.ttc', 32)
@@ -223,6 +223,11 @@ SBAR_WEATHER_ICON_RAIN	= Image.open( "icon/icon_rain.jpg" )
 
 SBAR_WEATHER_ICON_POS	= (EPD_WIDTH-43, 0)
 SBAR_CLOCK_POS		= ( 90, -4)
+SBAR_DOOR_POS		= ( 150, -1)
+SBAR_TIMER_POS		= ( 170, -1)
+SBAR_DISHES_POS		= ( 190, -2)
+
+
 SBAR_SOC_POS			= (160, -2)
 SBAR_MOIST_POS		= (150, -4)
 SBAR_APPLE_POS		= ( 35, 0)

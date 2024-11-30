@@ -55,6 +55,17 @@ dirty_dishes	= False				# 汚れた食器が入っている（True）
 washer_door		= WASHER_DOOR_CLOSE
 washer_timer	= WASHER_TIMER_OFF
 
+
+#def door_label()->str:
+#	return "OP" if washer_door==WASHER_DOOR_OPEN else "CL"
+
+#def dishes_label()->str:
+#	return "IN" if dirty_dishes else "NO"
+
+#def timer_label()->str:
+	
+
+
 # ------------------------------------------------------------------------------
 def capture_washer()->np.ndarray:
 	"""

@@ -87,6 +87,13 @@ system_tick = 0
 draw_normal_fujikyun_counter = 1000
 
 
+PIC_DOOR_OPEN	= Image.open("icon/icon_door_open.png")
+PIC_DOOR_CLOSE	= Image.open("icon/icon_door_close.png")
+PIC_TIMER_OFF	= Image.open("icon/icon_cancel.png")
+PIC_TIMER_ON	= Image.open("icon/icon_clock2.png")
+PIC_DISHES_OK	= Image.open("icon/icon_smile.png")
+PIC_DISHES_NG	= Image.open("icon/icon_caution.png")
+
 # ------------------------------------------------------------------------------
 def update_display():
 	"""画面更新のポータル
@@ -127,29 +134,25 @@ def update_display():
 	# 各モードの画面上に上書きされるダイアログの処理
 	g.draw_dialog()
 
-	# 画面更新したときだけ、ステータスバーやウェザー情報を追加する
-	# （ステータスバーやウェザーポップアップだけを行うケースが思いつかない）
-	# TODO: 高頻度に描写してみる
-	if update_counter==0 or True:
-		# 全モード共通の作画を行う（ステータスバー、天気表示）
-		# 偽マックアイコン、時計表示など
-		g.clear_sbar_image()
-		g.image_sbar_buf.paste( SBAR_APPLE_ICON,  (30,0) )
-		g.draw_sbar.line( (0, SBAR_HEIGHT-1, SBAR_WIDTH-1, SBAR_HEIGHT-1), fill="black", width=1 )
 
-#		g.draw_sbar.text( SBAR_MOIST_POS, "{0:3d}%".format(int(g.newest_moist)), fill="red", font=menu_font)
+	# 全モード共通の作画を行う（ステータスバー、ドア・食器・予約表示）
+	# 偽マックアイコン、時計表示など
+	g.clear_sbar_image()
+	g.image_sbar_buf.paste( SBAR_APPLE_ICON,  (30,0) )
+	g.draw_sbar.line( (0, SBAR_HEIGHT-1, SBAR_WIDTH-1, SBAR_HEIGHT-1), fill="black", width=1 )
 
-		# 時計または土壌
-		g.draw_sbar.text( SBAR_CLOCK_POS, datetime.datetime.now().strftime("%H:%M"), fill="black", font=menu_font )
-#		if( disp_mode!=DISP_MODE_CLOCK):
-#			g.draw_sbar.text( SBAR_CLOCK_POS, datetime.datetime.now().strftime("%H:%M"), fill="black", font=menu_font )
-#		else:
-#			g.draw_sbar.text( SBAR_CLOCK_POS, "{0:.1f}°C".format(g.newest_temp), fill="black", font=menu_font )
+	# 時計
+	g.draw_sbar.text( SBAR_CLOCK_POS, datetime.datetime.now().strftime("%H:%M"), fill="black", font=menu_font )
 
-		# 各ウェザーモードでの追加描画（ポップアップ、雨・晴れアイコン）を行う
-		rain.update_weather()
+	# ドア・タイマ・食器
+	g.image_sbar_buf.paste(PIC_DOOR_OPEN if washer.washer_door==WASHER_DOOR_OPEN else PIC_DOOR_CLOSE, SBAR_DOOR_POS)
+	g.image_sbar_buf.paste(PIC_TIMER_OFF if washer.washer_timer==WASHER_TIMER_OFF else PIC_TIMER_ON, SBAR_TIMER_POS)
+	g.image_sbar_buf.paste(PIC_DISHES_OK if washer.dirty_dishes else PIC_DISHES_NG, SBAR_DISHES_POS)
 
-		g.epd_display()		# ディスプレイへのFLUSH
+	# 各ウェザーモードでの追加描画（ポップアップ、雨・晴れアイコン）を行う
+	rain.update_weather()
+
+	g.epd_display()		# ディスプレイへのFLUSH
 
 	# 最後にもう一回クリア！
 	g.update_display_immediately_flag = False
@@ -161,37 +164,42 @@ draw_normal_old_fujikyun = ""
 
 def draw_normal()->None:
 	"""【モード1】ノーマル表示（水分量に応じて、ふじきゅんを描き分ける）
-
-	どうやって変化をつけるか・・・？
-	水分量＞閾値　：　楽しそうな絵を数枚回す（呼ばれるたびにランダム？）
-	水分量＜閾値　：　飢餓っぽい絵を数枚回す
-
-	急速に水をもらった時の処理は、センサー側でupdate_display_immediatelyを呼ぶ？
-	恒常的な湿潤ではなく、水をもらった感謝的なポップアップはどうする？
-	update側で処理できるか？
+	・天気予報
+	・ゴミの日
+	・ドアなどは補足情報
+	
 	"""
 
 	global draw_normal_fujikyun_counter, draw_normal_old_fujikyun
 
 	g.log("draw_normal", "begin")
-
 	draw_normal_fujikyun_counter+=1
-
-
 
 	if( draw_normal_fujikyun_counter>FUJIKYUN_UPDATE_INTERVAL_t ):
 		draw_normal_fujikyun_counter = 0
 		draw_normal_old_fujikyun = PICS_NORMAL[ rnd(len(PICS_NORMAL)) ]
 
-	if draw_normal_old_fujikyun!="":	g.image_main_buf.paste( draw_normal_old_fujikyun )
+#	if draw_normal_old_fujikyun!="":	g.image_main_buf.paste( draw_normal_old_fujikyun )
 
-	# この後、四隅に数字などをチマチマ記載予定
-	# TODO: 稼働状態を何らかの表示で示す必要あり？？
-	# SBARもあるのでほどほどに
-	# とりあえず土壌水分量を書いてみよう
-	# 絵が見にくくなる・・・ので、たまにだけ描く？
-	#g.draw_main.text( MODE_NORMAL_MOIST_POS, "{:3d}%".format(int(g.newest_moist)), "red", font=digitalLargeFont )
+	g.draw_main.rectangle((0,0,MAIN_WIDTH,MAIN_HEIGHT/2), fill=(150,150,255))
+	g.draw_main.rectangle((0,MAIN_HEIGHT/2,MAIN_WIDTH,MAIN_HEIGHT), fill=(150,255,150))
 
+	dt = datetime.datetime.now()
+	#g.draw_main.text((0,5), dt.strftime("%m/%d %a"), font=digitalMiddleFont, fill="black")
+	g.draw_main.text((5,50), dt.strftime("%H:%M"), font=clockLargeFont, fill="black")
+
+
+	# 幅240, 高さ260
+
+	# ゴミ出し情報
+	gomi = Image.open("icon/gomi/gomi_plastic.png" ).resize((100,100))
+	g.image_main_buf.paste(gomi, (120+10,130+5), gomi)
+
+	# 天気情報
+	tenki = Image.open("icon/weather/snow.png").resize((100,100))
+	g.image_main_buf.paste(tenki, (0,130+10 ), tenki)
+	g.draw_main.text( (20,210), "50", font=digitalMiddleFont, fill="black")
+	g.draw_main.text( (100,210), "%", font=unitFont, fill="black")
 
 # ------------------------------------------------------------------------------
 
@@ -292,7 +300,7 @@ def init_at_boot()->None:
 #	g.talk( voice_opening2 )
 	g.talk( "hoge" )
 
-	washer.preview_washser()
+#	washer.preview_washser()
 	#door, timer = washer.check_washer_now()
 	#print( f"{door=} / {timer=}" )
 

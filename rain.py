@@ -132,7 +132,8 @@ def check_fine()->None:
 def update_fine()->None:
 	# 雨が降ってないときの処理。たまには喋る？
 	# mod = rain_counter % (TIMER_CLOCK+TIMER_WEATHER)
-	g.image_sbar_buf.paste( SBAR_WEATHER_ICON_FINE, SBAR_WEATHER_ICON_POS )
+	pass
+	#g.image_sbar_buf.paste( SBAR_WEATHER_ICON_FINE, SBAR_WEATHER_ICON_POS )
 
 # ------------------------------------------------------------------------------
 # 【２】降り始めモード（BEGIN）
@@ -159,7 +160,7 @@ def end_begin()->None:
 
 def update_begin()->None:
 	# ステータスバーに加え、ポップアップも行う
-	g.image_sbar_buf.paste( SBAR_WEATHER_ICON_RAIN, SBAR_WEATHER_ICON_POS )
+	#g.image_sbar_buf.paste( SBAR_WEATHER_ICON_RAIN, SBAR_WEATHER_ICON_POS )
 	g.set_dialog( ICON_RAIN, end_begin, "" )
 
 # ------------------------------------------------------------------------------
@@ -185,7 +186,8 @@ def check_rain()->None:
 		sleep_timer = 999999
 
 def update_rain():
-	g.image_sbar_buf.paste( SBAR_WEATHER_ICON_RAIN, SBAR_WEATHER_ICON_POS )
+	pass
+	#g.image_sbar_buf.paste( SBAR_WEATHER_ICON_RAIN, SBAR_WEATHER_ICON_POS )
 
 # ------------------------------------------------------------------------------
 # 【４】雨終了モード（STOP）
@@ -211,7 +213,7 @@ def end_stop()->None:
 
 def update_stop():
 	# ステータスバーに加え、ポップアップも行う
-	g.image_sbar_buf.paste( SBAR_WEATHER_ICON_FINE, SBAR_WEATHER_ICON_POS )
+	#g.image_sbar_buf.paste( SBAR_WEATHER_ICON_FINE, SBAR_WEATHER_ICON_POS )
 	g.set_dialog( PIC_RAIN, end_stop, "" )
 
 
