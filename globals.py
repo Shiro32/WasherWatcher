@@ -349,25 +349,6 @@ def _turn_off_LED()->None:
 # ------------------------------------------------------------------------------
 # スクリーンセーバー関係
 
-def cb_saver_sw_interrupt(gpio, level, tick):
-	"""スクリーンセーバーのON/OFFスイッチの処理
-	・ポーリングではなく、割り込み処理にしている
-	・SW変化に応じてvoiceも処理する
-	"""
-	# TODO: 必要性はわからんけど、現状のセーバーSWの状態を迅速反映する？？？
-	check_screen_saver_sw()
-
-	# スクリーンセーバーON（レバー↑）
-	if level==0:
-		talk( "sukuri-nseiba-wo o'n/nisimasita." )
-		reset_screen_saver()
-
-	# スクリーンセーバーOFF(レバー↓）
-	elif level==1:
-		talk( "sukuri-nseiba-wo o'fun/isimasita." )
-		_cancel_screen_saver_timer()
-		setBackLight( EPD_BACKLIGHT_SW_SAVER, True )
-		set_LED_mode( LED_BLINK_LONG )
 
 def reset_screen_saver()->None:
 	"""スクリーンセーバーの新規セット
@@ -386,31 +367,13 @@ def reset_screen_saver()->None:
 	_cancel_screen_saver_timer()
 	schedule.every(SCREEN_SAVER_TIMER_m).minutes.do(_do_screen_saver).tag("_do_screen_saver")
 
-def check_screen_saver_sw()->None:
-	"""スクリーンセーバーのON/OFFスイッチ（一番右）をチェックする
-	メインルーチンから高頻度で呼ばれる→pigpioのcallbackでやるように変更
-	すでにスクリーンセーバーカウントしていても全部キャンセルできる
-	"""
-	return
-
-	# スクリーンセーバーOFFの場合
-	if pi.read( SAVER_SW_PIN )==pigpio.HIGH:
-		_cancel_screen_saver_timer()
-		setBackLight( EPD_BACKLIGHT_SW_SAVER, True )
-		set_LED_mode( LED_BLINK_LONG )
-
 def _do_screen_saver()->None:
 	""" スクリーンセーバー状態への突入（画面を消すだけ）
 	"""
 	_cancel_screen_saver_timer()
 
-	return
-
-	if pi.read( SAVER_SW_PIN )==pigpio.HIGH:
-		setBackLight( EPD_BACKLIGHT_SW_SAVER, True )
-	else:
-		setBackLight( EPD_BACKLIGHT_SW_SAVER, False )	
-		set_LED_mode( LED_BLINK_SHORT )
+	setBackLight( EPD_BACKLIGHT_SW_SAVER, False )	
+	set_LED_mode( LED_BLINK_SHORT )
 
 def _cancel_screen_saver_timer()->None:
 	schedule.clear("_do_screen_saver")
@@ -636,7 +599,12 @@ def check_sleep()->None:
 
 	setBackLight( EPD_BACKLIGHT_SW_MAIN, True if sleep_mode==SLEEP_MODE_WAKEUP else False )
 
+
 def time_mode_check()->None:
+	"""
+	時間帯（time_mode）を決める
+	rainのoclock関数から呼ばれる"""
+
 	global time_mode
 
 	h = datetime.datetime.now().hour
