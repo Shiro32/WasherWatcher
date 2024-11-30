@@ -51,9 +51,9 @@ WASHER_CAP_TRIM_RIGHT	= 1/4*3
 
 # 食洗器の状態（状態を保持し続けるためにグローバル化）
 # 暗くなる or 子機から問われた時はこれをもとに回答
-washer_dirty_dishes	= False
-washer_door			= WASHER_DOOR_CLOSE
-washer_timer		= WASHER_TIMER_OFF
+dirty_dishes	= False				# 汚れた食器が入っている（True）
+washer_door		= WASHER_DOOR_CLOSE
+washer_timer	= WASHER_TIMER_OFF
 
 # ------------------------------------------------------------------------------
 def capture_washer()->np.ndarray:
@@ -76,6 +76,7 @@ def capture_washer()->np.ndarray:
 	picam.start()
 	img = picam.capture_array()
 	picam.stop()
+	picam.close()
 
 	# カラーモードの調整なのかな
 	chs = 1 if len(img.shape)==2 else img.shape[2]
@@ -111,11 +112,13 @@ def pattern_matching(image, template, max_zoom)->Tuple[float, float]:
 		x : 相関係数
 		y : 拡大率
 	"""
+	g.log("WASHER","パターンマッチング")
+
 	img = cv2.cvtColor( image, cv2.COLOR_RGB2GRAY )
 	tpl = cv2.cvtColor( cv2.imread(template), cv2.COLOR_RGB2GRAY )
 
 	# 拡大を許さないパターン
-	if max_zoom==00:
+	if max_zoom==100:
 		result = cv2.matchTemplate(img, tpl, cv2.TM_CCOEFF_NORMED)
 		_, corr, _, _ = cv2.minMaxLoc(result)
 
@@ -126,7 +129,7 @@ def pattern_matching(image, template, max_zoom)->Tuple[float, float]:
 		corr = 0
 		zoom = 100
 
-		for i in range(100, max_zoom+1 , 1):
+		for i in range(100, max_zoom+1 , 2):
 
 			# テンプレートの拡大
 			tpl2 = cv2.resize(tpl, None, fx=i/100, fy=i/100,interpolation=cv2.INTER_CUBIC)
@@ -141,7 +144,7 @@ def pattern_matching(image, template, max_zoom)->Tuple[float, float]:
 		return corr, zoom
 
 # ------------------------------------------------------------------------------
-def check_washer_now()->None:
+def _check_washer_now()->None:
 	"""
 	食洗器を撮影して、現在の状況を確認する
 	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
@@ -161,13 +164,15 @@ def check_washer_now()->None:
 
 	# タイマー０
 	corr, zoom = pattern_matching( img, TEMP_LIGHT_OFF, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom==100 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_OFF, "CORR":corr} )
+	corr=100
+	zoom=140
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_OFF, "CORR":corr} )
 	# タイマー2H
 	corr, zoom = pattern_matching( img, TEMP_LIGHT_2H, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom==100 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_2H, "CORR":corr} )
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_2H, "CORR":corr} )
 	# タイマー4H
 	corr, zoom = pattern_matching( img, TEMP_LIGHT_4H, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom==100 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_4H, "CORR":corr} )
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_4H, "CORR":corr} )
 
 	#昇順ソート
 	results = sorted(results, key=lambda x:x["CORR"], reverse=True)
@@ -190,6 +195,57 @@ def check_washer_now()->None:
 		return results[0]["DOOR"], results[0]["TIMER"]
 
 # ------------------------------------------------------------------------------
+def check_washer()->None:
+	"""
+	食洗器を撮影して、現在の状況を確認する
+	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
+
+	戻り値：(int x, int y)
+	　x : ドアの状態（open/close）
+	　y : タイマの状態（off/2h/4h/now）
+	"""
+	global dirty_dishes, washer_door, washer_timer
+
+	# 直前値を保持
+	old_dirty_dishes	= dirty_dishes
+	old_washer_door		= washer_door
+	old_washer_timer	= washer_timer
+
+	# １ショット撮影してドア・タイマの状態をチェック
+	door, timer = _check_washer_now()
+
+	# 状態不明なら諦める（ガード節）
+	if door==WASHER_STATUS_UNKNOWN: return
+
+	# 最新の状態を反映する
+	washer_door = door
+	washer_timer = timer
+
+	# ドア・タイマによるdirtyの状態設定・アクション
+
+	# 1.ドアが開いている（食器を入れている）
+	if door==WASHER_DOOR_OPEN:
+		# 無条件にドア開放＝汚れとしているが、すぐ下のtimerチェックでクリアできる
+		dirty_dishes = True
+
+		#音声処理
+		if old_washer_door!=door: g.talk("do'aga hirakimasita")
+
+	# 2.ドアが閉まっている（特になし）
+	if door==WASHER_DOOR_CLOSE:
+		if old_washer_door!=door: g.talk("do'aga simattayo")
+
+	# 3.タイマーがオフ（特になし）
+	
+	# 4.タイマーが2hまたは4h（食器クリア）
+	if timer==WASHER_TIMER_2H or timer==WASHER_TIMER_4H:
+		dirty_dishes = False
+		if old_washer_timer!=timer: g.talk("ta'ima-ga settosaremasita.")
+
+	return
+
+
+# ------------------------------------------------------------------------------
 def preview_washser()->None:
 	"""
 	カメラのプレビューを表示する
@@ -202,7 +258,7 @@ def preview_washser()->None:
 
 	g.log( "WASHER","プレビュー")
 
-	picam = Picamera2(0)
+	picam = Picamera2()
 	picam.configure(
 		picam.create_preview_configuration(
 			main={"format": 'XRGB8888', "size": (PREVIEW_WIDTH, PREVIEW_HEIGHT)}))
@@ -222,7 +278,9 @@ def preview_washser()->None:
 		#	int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
 		
 		img = Image.fromarray(img)
-		draw = ImageDraw.Draw(img)
+		g.image_main_buf.paste( img )
+
+		draw = ImageDraw.Draw(g.image_main_buf)
 		draw.rectangle((
 			int(PREVIEW_WIDTH *WASHER_CAP_TRIM_LEFT),
 			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_TOP),
@@ -230,9 +288,8 @@ def preview_washser()->None:
 			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_BOTTOM)),
 			outline=(255,255,255))
 
-		draw.text( (40, 160), "ボタンでプレビュー終了", font=info_title_font, fill="black" )
+		draw.text( (40, 220), "ボタンでプレビュー終了", font=info_title_font, fill="black" )
 
-		g.image_main_buf.paste( img )
 		g.epd_display()
 		if g.front_button_status()==PUSH_1CLICK: break
 

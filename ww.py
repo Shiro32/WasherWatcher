@@ -266,12 +266,13 @@ def init_at_boot()->None:
 	g.setBackLight( g.EPD_BACKLIGHT_SW_SAVER, True )
 
 	# オープニング
-#	g.talk( voice_opening1, TALK_FORCE )
+#	g.talk( voice_opening1 )
 	g.check_IP_address()
 
 	# 各種自動実行のスケジューリング開始
 #	schedule.every(SENSING_INTERVAL_s)		.seconds.do(read_sensors)		# センサ計測
 
+	schedule.every(CHECK_WASHER_INTERVAL_s).seconds.do(washer.check_washer)
 	schedule.every(DISP_UPDATE_INTERVAL_s).seconds.do(update_display) # 画面更新（最短10秒）
 #	schedule.every().hour.at("00:00")							.do(rain.oclock)		# 時報処理
 	schedule.every(LED_BLINK_INTERVAL_s)	.seconds.do(g.handle_LED)		# フロントLED部リンク
@@ -288,8 +289,8 @@ def init_at_boot()->None:
 
 	# 初回描画は早めに（ちっとも早くならないけど）
 	g.update_display_immediately()
-#	g.talk( voice_opening2, TALK_FORCE)
-	g.talk( "hoge", TALK_FORCE )
+#	g.talk( voice_opening2 )
+	g.talk( "hoge" )
 
 	washer.preview_washser()
 	#door, timer = washer.check_washer_now()
@@ -348,14 +349,14 @@ if __name__ == "__main__":
 				#g.front_button_sound()
 				#g.reset_front_button_status()
 
-				#g.talk( voice_shutdown1, TALK_FORCE, True)
+				#g.talk( voice_shutdown1, True)
 				#g.clear_image()
 				#g.image_buf.paste( ICON_BYE_MAC, (0,0) )
 				#g.epd_display( False )
 
 				#g.log( "SHUTDOWN" )
-				#g.talk( voice_shutdown2, TALK_FORCE, True )
-				#g.talk( voice_shutdown3, TALK_FORCE, False )
+				#g.talk( voice_shutdown2, True )
+				#g.talk( voice_shutdown3, False )
 
 				#pi.stop()
 				#os.system( "sudo shutdown now" )

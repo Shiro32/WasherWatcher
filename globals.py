@@ -172,7 +172,7 @@ def front_button_sound()->None:
 	if _front_button_status==PUSH_SUPER_LONGPRESS	: s = "pipipi'xtu"
 	if _front_button_status==PUSH_ULTRA_LONGPRESS	: s = "pu'supusupusu"
 
-	if s!="": talk(s, TALK_FORCE)
+	if s!="": talk(s)
 
 # ------------------------------------------------------------------------------
 def init_front_button()->None:
@@ -359,12 +359,12 @@ def cb_saver_sw_interrupt(gpio, level, tick):
 
 	# スクリーンセーバーON（レバー↑）
 	if level==0:
-		talk( "sukuri-nseiba-wo o'n/nisimasita.", TALK_FORCE )
+		talk( "sukuri-nseiba-wo o'n/nisimasita." )
 		reset_screen_saver()
 
 	# スクリーンセーバーOFF(レバー↓）
 	elif level==1:
-		talk( "sukuri-nseiba-wo o'fun/isimasita.", TALK_FORCE )
+		talk( "sukuri-nseiba-wo o'fun/isimasita." )
 		_cancel_screen_saver_timer()
 		setBackLight( EPD_BACKLIGHT_SW_SAVER, True )
 		set_LED_mode( LED_BLINK_LONG )
@@ -477,31 +477,21 @@ def setBackLight( level:int, mode:bool )->None:
 	handleBackLight()
 
 # --------------------- TALK ICでしゃべる ---------------------
-# force
-#   TALK_FORCE 　: 無条件にしゃべる
-#   TALK_MORNING : 早朝から喋る（あいさつ、時報など）
-#   TALK_DAY     : 昼間時間帯だけ（雨監視）
-#
 # wait
 #   True: 喋り終わるまで待つ（デフォルト）
 #   False: 待たない
 
 def cb_sound_sw_interrupt(gpio, level, tick)->None:
 	"""サウンドSWの割り込み処理ハンドラ"""
-	talk( "saundowo o'n/nisi'masita." if level==0 else "saundowo o'fu/nisi'masita.", TALK_FORCE )
+	talk( "saundowo o'n/nisi'masita." if level==0 else "saundowo o'fu/nisi'masita." )
 
-def talk(message, force, wait=True):
+def talk(message, wait=True):
 	# スクリーンセーバー解除
 	# 音声SWをオフにしていても解除するかは賛否両論か・・・？
 	reset_screen_saver()
 
 	h = datetime.datetime.now().hour
 
-	# 早朝モード
-	if( force==TALK_MORNING and (TIME_MIDNIGHT<=h<TIME_MORNING) ): return
-	
-	# 昼間だけモード
-	if( force==TALK_DAY and (TIME_MIDNIGHT<=h<TIME_DAY) ): return
 
 	# いよいよ喋るけど、まれにエラーが出るのでtry/catch
 	try:
@@ -518,12 +508,12 @@ def talk(message, force, wait=True):
 		return
 
 
-def talks( messages, force )->None:
+def talks( messages )->None:
 	"""複数のメッセージを連続して喋らせる
 	　・メッセージーは引数messagesにリストの形で引き渡す。あまり意味ないか？
 	"""
 	for mes in messages:
-		talk( mes, force, True )
+		talk( mes, True )
 
 # --------------------- log画面出力 ---------------------
 def log(msg1, msg2=""):
@@ -608,16 +598,16 @@ def check_sleep()->None:
 
 			# 夜に電気を付けた時
 			if time_mode>=TIME_MODE_NIGHT:
-				talk( "mo'u <NUMK VAL="+str(h)+" COUNTER=ji>desuyo'. "+ bright_voice[rnd(len(bright_voice))],  TALK_FORCE )
+				talk( "mo'u <NUMK VAL="+str(h)+" COUNTER=ji>desuyo'. "+ bright_voice[rnd(len(bright_voice))]  )
 
 			# 普通に朝を迎えた場合→おはようございます
 			elif time_mode<=TIME_MODE_MORNING:
-				talk( voice_goodmorning1, TALK_FORCE )
-				talk( voice_goodmorning_rain if is_rain() else voice_goodmorning_fine, TALK_FORCE)
+				talk( voice_goodmorning1 )
+#				talk( voice_goodmorning_rain if is_rain() else voice_goodmorning_fine)
 
 			# 夜に部屋に入っただけ
 			else:
-				talk( mabushii_voice[rnd(len(mabushii_voice))], TALK_FORCE)
+				talk( mabushii_voice[rnd(len(mabushii_voice))])
 
 			sleep_timer = 0
 			sleep_mode = SLEEP_MODE_WAKEUP
@@ -632,13 +622,13 @@ def check_sleep()->None:
 
 			# 寝るとき
 			if time_mode >= TIME_MODE_SLEEP:
-				talk( voice_goodnight1, TALK_FORCE )
-				talk( voice_goodnight_rain if is_rain() else voice_goodnight_fine, TALK_FORCE )
-				talk( voice_goodnight2, TALK_FORCE )
+				talk( voice_goodnight1 )
+#				talk( voice_goodnight_rain if is_rain() else voice_goodnight_fine )
+				talk( voice_goodnight2 )
 			elif time_mode == TIME_MODE_DAY:
-				talk( voice_kurai, TALK_FORCE )
+				talk( voice_kurai )
 			else:
-				talk( voice_nero, TALK_FORCE )
+				talk( voice_nero )
 				# トンネルモードを作りたい
 
 			sleep_timer = 0
@@ -661,6 +651,6 @@ def time_mode_check()->None:
 
 
 def is_rain()->bool:
-	return True if pi.read(RAIN_PIN)==pigpio.LOW else False
+	return True if comm.check_rain_status()==pigpio.LOW else False
 
 

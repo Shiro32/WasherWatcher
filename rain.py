@@ -83,15 +83,15 @@ def oclock()->None:
 
 	g.time_mode_check()
 
-	g.talk( about_voice[rnd(len(about_voice))]+"  <NUMK VAL="+str(h)+" COUNTER=ji>desu", TALK_MORNING )
+	g.talk( about_voice[rnd(len(about_voice))]+"  <NUMK VAL="+str(h)+" COUNTER=ji>desu" )
 	time.sleep(2)
-	g.talk( "sabote'n no sui'bunryouwa <NUMK VAL="+str(int(g.newest_moist))+" COUNTER=pa-sento>desu.", TALK_MORNING )
+	g.talk( "sabote'n no sui'bunryouwa <NUMK VAL="+str(int(g.newest_moist))+" COUNTER=pa-sento>desu." )
 
-	if h==23:	g.talk( "mou nerujikan desune.", TALK_FORCE )
-	if h==15:	g.talk( "oya'tsuno jikan desune.", TALK_MORNING )
-	if h==12:	g.talk( "ohi'ru/ya'sumi de'sune.", TALK_MORNING )
+	if h==23:	g.talk( "mou nerujikan desune." )
+	if h==15:	g.talk( "oya'tsuno jikan desune." )
+	if h==12:	g.talk( "ohi'ru/ya'sumi de'sune." )
 	if h==8:
-#		g.talk( "tenkiyo'houwo otutaesimasu.", TALK_FORCE)
+#		g.talk( "tenkiyo'houwo otutaesimasu." )
 		weather.check_weather_info(0, 0)
 
 	# 日々の最大・最小データは夜中の3時でクリア
@@ -105,7 +105,7 @@ def oclock()->None:
 	else:
 		rain_hours += 1 # １時間ごとにカウントアップ（長雨検出）
 		if rain_hours >= TIMER_RAINTIME:
-			g.talk( long_rain_voice[rnd(len(long_rain_voice))], TALK_MORNING )
+			g.talk( long_rain_voice[rnd(len(long_rain_voice))] )
 
 # ------------------------------------------------------------------------------
 # 【１】晴れモード（FINE）
@@ -125,7 +125,7 @@ def check_fine()->None:
 	# TODO: ダイアログ消去と重複しないようにダサいチェックが入っている
 	if g.dialog_status()==False and g.front_button_status()==PUSH_1CLICK:
 		g.reset_front_button_status()
-		g.talk(voices_hare[rnd(len(voices_hare))], TALK_FORCE)
+		g.talk(voices_hare[rnd(len(voices_hare))])
 		g.update_display_immediately()
 		sleep_timer = 999999
 
@@ -143,7 +143,7 @@ def check_begin()->None:
 
 	# 数秒おきに「雨が降ってきた」音声
 	if rain_counter % TIMER_RAIN_MESSAGE == 0:
-		g.talk(voice_rain_start, TALK_DAY, wait=False)
+		g.talk(voice_rain_start, wait=False)
 
 	# タイムアップで、雨中モードへ。深夜帯は短めのタイマにする
 	if g.time_mode< TIME_MODE_NIGHT and rain_counter>=TIMER_RAIN_BEGIN_ALERT : 		rain_mode = WEATHER_MODE_RAIN
@@ -153,7 +153,7 @@ def end_begin()->None:
 	global rain_mode, sleep_timer
 
 	rain_mode = WEATHER_MODE_RAIN
-	g.talk(voice_stop, TALK_FORCE, True)
+	g.talk(voice_stop, True)
 	sleep_timer = 999999
 	g.update_display_immediately()
 
@@ -181,7 +181,7 @@ def check_rain()->None:
 	if g.dialog_status()==False and g.front_button_status()==PUSH_1CLICK:
 		g.reset_front_button_status()
 		g.update_display_immediately()
-		g.talk(voices_rain[rnd(len(voices_hare))] if is_rain() else "honto'uwa hare'desuyo", TALK_FORCE)
+		g.talk(voices_rain[rnd(len(voices_hare))] if is_rain() else "honto'uwa hare'desuyo")
 		sleep_timer = 999999
 
 def update_rain():
@@ -196,7 +196,7 @@ def check_stop()->None:
 
 	# 数秒おきに「雨がやんだよ」コール
 	if rain_counter % TIMER_RAIN_MESSAGE == 0:
-		g.talk("a'mega/yandamitaidesuyo?", TALK_DAY, wait=False)
+		g.talk("a'mega/yandamitaidesuyo?", wait=False)
 		
 	# 夜中は短めにする
 	if g.time_mode< TIME_MODE_NIGHT and rain_counter>=TIMER_RAIN_STOP_ALERT      : rain_mode = WEATHER_MODE_FINE
@@ -206,7 +206,7 @@ def end_stop()->None:
 		global rain_mode, sleep_timer
 		g.reset_front_button_status()
 		rain_mode = WEATHER_MODE_FINE
-		g.talk(voice_stop, TALK_FORCE)
+		g.talk(voice_stop)
 		sleep_timer = 999999
 
 def update_stop():
