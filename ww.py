@@ -147,7 +147,7 @@ def update_display():
 	# ドア・タイマ・食器
 	g.image_sbar_buf.paste(PIC_DOOR_OPEN if washer.washer_door==WASHER_DOOR_OPEN else PIC_DOOR_CLOSE, SBAR_DOOR_POS)
 	g.image_sbar_buf.paste(PIC_TIMER_OFF if washer.washer_timer==WASHER_TIMER_OFF else PIC_TIMER_ON, SBAR_TIMER_POS)
-	g.image_sbar_buf.paste(PIC_DISHES_OK if washer.dirty_dishes else PIC_DISHES_NG, SBAR_DISHES_POS)
+	g.image_sbar_buf.paste(PIC_DISHES_NG if washer.washer_dishes==WASHER_DISHES_DIRTY else PIC_DISHES_OK, SBAR_DISHES_POS)
 
 	# 各ウェザーモードでの追加描画（ポップアップ、雨・晴れアイコン）を行う
 	rain.update_weather()
@@ -278,11 +278,9 @@ def init_at_boot()->None:
 	g.check_IP_address()
 
 	# 各種自動実行のスケジューリング開始
-#	schedule.every(SENSING_INTERVAL_s)		.seconds.do(read_sensors)		# センサ計測
-
-	schedule.every(CHECK_WASHER_INTERVAL_s).seconds.do(washer.check_washer)
-	schedule.every(DISP_UPDATE_INTERVAL_s).seconds.do(update_display) # 画面更新（最短10秒）
-#	schedule.every().hour.at("00:00")							.do(rain.oclock)		# 時報処理
+#	schedule.every(MONITOR_WASHER_INTERVAL_s)	.seconds.do(washer.monitor_washer)
+	schedule.every(DISP_UPDATE_INTERVAL_s)	.seconds.do(update_display) # 画面更新（最短10秒）
+	schedule.every().hour.at("00:00")		.do(rain.oclock)		# 時報処理
 	schedule.every(LED_BLINK_INTERVAL_s)	.seconds.do(g.handle_LED)		# フロントLED部リンク
 
 	# RAINの時計処理
@@ -295,12 +293,19 @@ def init_at_boot()->None:
 	# 通信回線
 	comm.init_comm()
 
+	# 人感センサー電源（忘れずに！）
+	pi.write( PIR_VCC_PIN, pigpio.HIGH )
+
 	# 初回描画は早めに（ちっとも早くならないけど）
 	g.update_display_immediately()
 #	g.talk( voice_opening2 )
 	g.talk( "hoge" )
 
+	#プレビュー
+
+#	g.talk("pure'byu-desu. ichi'awasega/owa'ttara hida'rino/bo'tanwo osite'kudasai")
 #	washer.preview_washser()
+#	g.talk("pure'byu-/shuuryoudesu. kansiwo hajimema'su.")
 	#door, timer = washer.check_washer_now()
 	#print( f"{door=} / {timer=}" )
 
@@ -317,6 +322,9 @@ if __name__ == "__main__":
 			time.sleep(TIMER_TICK)  # 最小時間単位
 			system_tick += 1
 			schedule.run_pending()
+
+			# 人感センサーチェック（スクリーンセーバー解除）
+			g.check_PIR()
 
 			# ダイアログ表示時のボタン処理
 			g.check_dialog()

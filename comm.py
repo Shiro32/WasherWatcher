@@ -22,6 +22,8 @@ import time
 from cfg import *
 import globals as g
 
+import washer
+
 HOST = '0.0.0.0'
 PORT = 65432
 
@@ -75,6 +77,24 @@ def _receive_message_thread()->None:
 
 			elif data==COMM_WASHER_REQUEST:
 				g.comm_washer_request = True
+
+			elif data=="open":
+				washer.debug_door = "open"
+				g.log("COMM", "ドアOPEN")
+			elif data=="close":
+				washer.debug_door = "close"
+				g.log("COMM", "ドアCLOSE")
+			elif data=="off":
+				washer.debug_timer = "off"
+				g.log("COMM", "タイマーOFF")
+			elif data=="2H":
+				washer.debug_timer = "2H"
+				g.log( "COMM", "タイマー2H")
+			elif data=="check":
+				washer.check_washer(call_from_child=False)
+			elif data=="monitor":
+				washer.monitor_washer()
+
 
 			else:
 				g.log( "COMM RECV", f"知らないメッセージ:{data}")

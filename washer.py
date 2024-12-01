@@ -51,7 +51,7 @@ WASHER_CAP_TRIM_RIGHT	= 1/4*3
 
 # 食洗器の状態（状態を保持し続けるためにグローバル化）
 # 暗くなる or 子機から問われた時はこれをもとに回答
-dirty_dishes	= False				# 汚れた食器が入っている（True）
+washer_dishes	= WASHER_DISHES_EMPTY				# 汚れた食器が入っている（True）
 washer_door		= WASHER_DOOR_CLOSE
 washer_timer	= WASHER_TIMER_OFF
 
@@ -67,7 +67,7 @@ washer_timer	= WASHER_TIMER_OFF
 
 
 # ------------------------------------------------------------------------------
-def capture_washer()->np.ndarray:
+def _capture_washer()->np.ndarray:
 	"""
 	カメラモジュールで食洗器を撮影する
 	（戻り値） トリミング加工された写真（np.ndarray）
@@ -107,7 +107,7 @@ def capture_washer()->np.ndarray:
 	return img
 
 # ------------------------------------------------------------------------------
-def pattern_matching(image, template, max_zoom)->Tuple[float, float]:
+def _pattern_matching(image, template, max_zoom)->Tuple[float, float]:
 	"""
 	現在の食洗器の写真と、テンプレートを照合して一致度を計算する
 
@@ -128,7 +128,7 @@ def pattern_matching(image, template, max_zoom)->Tuple[float, float]:
 	img = cv2.cvtColor( image, cv2.COLOR_RGB2GRAY )
 	tpl = cv2.cvtColor( cv2.imread(template), cv2.COLOR_RGB2GRAY )
 
-	# 拡大を許さないパターン
+	# 拡大を許さないパターン（TODO:もうやらないので、消していいカモ）
 	if max_zoom==100:
 		result = cv2.matchTemplate(img, tpl, cv2.TM_CCOEFF_NORMED)
 		_, corr, _, _ = cv2.minMaxLoc(result)
@@ -155,7 +155,7 @@ def pattern_matching(image, template, max_zoom)->Tuple[float, float]:
 		return corr, zoom
 
 # ------------------------------------------------------------------------------
-def _check_washer_now()->None:
+def _monitor_washer_now()->None:
 	"""
 	食洗器を撮影して、現在の状況を確認する
 	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
@@ -168,21 +168,23 @@ def _check_washer_now()->None:
 	g.log( "WASHER","食洗器チェック")
 
 	# 写真を撮影
-	img = capture_washer()
+	img = _capture_washer()
 
 	# 3パターン（オフ、2H、4H）でパターンマッチングして、一番スコアの高いものを採用
 	results = [] # {ドア状態、タイマー状態、相関値}
 
+
+	#zoomは全部130
 	# タイマー０
-	corr, zoom = pattern_matching( img, TEMP_LIGHT_OFF, 130)
-	corr=100
-	zoom=140
+	corr, zoom = _pattern_matching( img, TEMP_LIGHT_OFF, 100)
 	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_OFF, "CORR":corr} )
+
 	# タイマー2H
-	corr, zoom = pattern_matching( img, TEMP_LIGHT_2H, 130)
+	corr, zoom = _pattern_matching( img, TEMP_LIGHT_2H, 100)
 	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_2H, "CORR":corr} )
+
 	# タイマー4H
-	corr, zoom = pattern_matching( img, TEMP_LIGHT_4H, 130)
+	corr, zoom = _pattern_matching( img, TEMP_LIGHT_4H, 100)
 	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_4H, "CORR":corr} )
 
 	#昇順ソート
@@ -206,55 +208,100 @@ def _check_washer_now()->None:
 		return results[0]["DOOR"], results[0]["TIMER"]
 
 # ------------------------------------------------------------------------------
-def check_washer()->None:
+
+debug_door = False
+debug_timer = False
+
+def monitor_washer()->None:
 	"""
 	食洗器を撮影して、現在の状況を確認する
-	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
 
-	戻り値：(int x, int y)
-	　x : ドアの状態（open/close）
-	　y : タイマの状態（off/2h/4h/now）
+	・下請け（_monitor_washer_now）で現在の状態（ドア・タイマ）を調べる
+	・状態がunknownなら終了
+	・ドア開→汚れ食器あり
+	・ドア閉→なにもしない
+	・タイマーオフ→過去にタイマーセットされているなら、洗浄完了扱い
+	・タイマーオン→汚れ食器なし
 	"""
-	global dirty_dishes, washer_door, washer_timer
+	global washer_dishes, washer_door, washer_timer
 
 	# 直前値を保持
-	old_dirty_dishes	= dirty_dishes
+	old_washer_dishes	= washer_dishes
 	old_washer_door		= washer_door
 	old_washer_timer	= washer_timer
 
 	# １ショット撮影してドア・タイマの状態をチェック
-	door, timer = _check_washer_now()
+	door, timer = _monitor_washer_now()
 
 	# 状態不明なら諦める（ガード節）
-	if door==WASHER_STATUS_UNKNOWN: return
+#	if door==WASHER_STATUS_UNKNOWN: return
+
+	door = WASHER_DOOR_CLOSE
+	timer = WASHER_TIMER_OFF
+
+	if debug_door=="open": door = WASHER_DOOR_OPEN
+	if debug_door=="close": door = WASHER_DOOR_CLOSE
+	if debug_timer=="off": timer = WASHER_TIMER_OFF
+	if debug_timer=="2H": timer=WASHER_TIMER_2H
 
 	# 最新の状態を反映する
 	washer_door = door
 	washer_timer = timer
 
-	# ドア・タイマによるdirtyの状態設定・アクション
+	# ドア・タイマによるdishesの状態設定・アクション
 
 	# 1.ドアが開いている（食器を入れている）
 	if door==WASHER_DOOR_OPEN:
-		# 無条件にドア開放＝汚れとしているが、すぐ下のtimerチェックでクリアできる
-		dirty_dishes = True
-
-		#音声処理
+		washer_dishes = WASHER_DISHES_DIRTY
 		if old_washer_door!=door: g.talk("do'aga hirakimasita")
 
-	# 2.ドアが閉まっている（特になし）
+	# 2.ドアが閉まっている（食器には直接の変化なし）
 	if door==WASHER_DOOR_CLOSE:
 		if old_washer_door!=door: g.talk("do'aga simattayo")
 
-	# 3.タイマーがオフ（特になし）
-	
-	# 4.タイマーが2hまたは4h（食器クリア）
+	# 3.タイマーがオフ（直前までタイマONなら洗浄開始のハズ！！）
+	if timer==WASHER_TIMER_OFF and old_washer_timer!=WASHER_TIMER_OFF:
+		washer_dishes=WASHER_DISHES_WASHED
+
+	# 4.タイマーが2hまたは4h（食器には直接の変化なし）
 	if timer==WASHER_TIMER_2H or timer==WASHER_TIMER_4H:
-		dirty_dishes = False
 		if old_washer_timer!=timer: g.talk("ta'ima-ga settosaremasita.")
 
 	return
 
+# ------------------------------------------------------------------------------
+def check_washer( call_from_child:bool )->bool:
+	"""
+	食洗器の警報判断を行う
+	
+	戻り値
+	・True  : 正常（食器なし・タイマセット済み）
+	・False : 異常（食器あり・タイマセットなし） 
+	"""
+	global washer_dishes, washer_door, washer_timer
+
+	# なし or 洗浄済みならOK
+	if washer_dishes==WASHER_DISHES_EMPTY or washer_dishes==WASHER_DISHES_WASHED:
+		if call_from_child==False:
+			g.log("WASHER","汚れた食器はありません！")
+			g.talk( "shokuse'nki ijo'un/na'si de'su.")
+		return True
+
+	# 食器が入っているときは、タイマの設定によりOK/NG
+	elif washer_dishes==WASHER_DISHES_DIRTY:
+		if washer_timer==WASHER_TIMER_OFF:
+			if call_from_child==False:
+				g.log("WASHER","食器があるのにタイマーセットされていません！")
+				g.talk( "shokuse'nkino ta'ima-ga se'ttosareteimasen.")
+			else:
+				pass
+			return False
+		else:
+			if call_from_child==False:
+				g.log("WASHER","タイマーはセットされています！")
+				g.talk( "shokuse'nkino ta'ima-ha se'ttosareteimasu.")
+				g.talk( "a'nsinsite oya'suminasai.")
+			return True
 
 # ------------------------------------------------------------------------------
 def preview_washser()->None:
@@ -299,7 +346,7 @@ def preview_washser()->None:
 			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_BOTTOM)),
 			outline=(255,255,255))
 
-		draw.text( (40, 220), "ボタンでプレビュー終了", font=info_title_font, fill="black" )
+		draw.text( (40, 210), "左側のボタンでプレビュー終了", font=normalFont, fill="black" )
 
 		g.epd_display()
 		if g.front_button_status()==PUSH_1CLICK: break

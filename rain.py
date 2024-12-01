@@ -85,7 +85,6 @@ def oclock()->None:
 
 	g.talk( about_voice[rnd(len(about_voice))]+"  <NUMK VAL="+str(h)+" COUNTER=ji>desu" )
 	time.sleep(2)
-	g.talk( "sabote'n no sui'bunryouwa <NUMK VAL="+str(int(g.newest_moist))+" COUNTER=pa-sento>desu." )
 
 	if h==23:	g.talk( "mou nerujikan desune." )
 	if h==15:	g.talk( "oya'tsuno jikan desune." )

@@ -24,6 +24,8 @@ import smbus
 import time
 bus = smbus.SMBus(1)
 
+
+import washer
 # --------------------- 明るさに応じたvoice ---------------------
 
 # 夜間に明るくなったタイミング
@@ -345,20 +347,40 @@ def _turn_off_LED()->None:
 	"""
 	pi.write( FRONT_LED_PIN, pigpio.LOW )
 
+# ------------------------------------------------------------------------------
+# 人感センサー関係
+# 誤検出がそこそこあるので、一定時間で一度でもONになったONとする処理
+
+pir_on_count = pir_check_count = 0
+
+def check_PIR()->None:
+	global pir_check_count, pir_on_count
+
+	pir_check_count+=1
+	pir_on_count+=pi.read( PIR_PIN )
+
+	if pir_check_count>50:
+		log( "PIR", f"ON:{pir_on_count}/{pir_check_count}" )
+		if pir_on_count / pir_check_count > PIR_THRESHOLD:
+			reset_screen_saver()
+		
+		pir_check_count = pir_on_count = 0
+
 
 # ------------------------------------------------------------------------------
 # スクリーンセーバー関係
 
-
 def reset_screen_saver()->None:
 	"""スクリーンセーバーの新規セット
 	名前が変だけど、スクリーンセーバーを解除して画面表示を再開するということ
-	スクリーンセーバーをセットするということはこんなケースのこと
+
+	スクリーンセーバーをセットするということはこんなケース
 	・起動時（init_at_boot）
 	・声を出す（talk）
 	・ボタンを押す（cb_front_button_interrupt）
 	・ダイアログを出す（set_dialog）
 	・スクリーンセーバースイッチをONにする
+	・人感センサーがON（ONである限りずっと点灯）
 	"""
 	setBackLight( EPD_BACKLIGHT_SW_SAVER, True )	# 画面点灯
 	set_LED_mode( LED_BLINK_LONG )
@@ -453,8 +475,9 @@ def talk(message, wait=True):
 	# 音声SWをオフにしていても解除するかは賛否両論か・・・？
 	reset_screen_saver()
 
-	h = datetime.datetime.now().hour
+	if pi.read(SLIDE_SW_PIN)==pigpio.HIGH : return
 
+	h = datetime.datetime.now().hour
 
 	# いよいよ喋るけど、まれにエラーが出るのでtry/catch
 	try:
@@ -585,6 +608,7 @@ def check_sleep()->None:
 
 			# 寝るとき
 			if time_mode >= TIME_MODE_SLEEP:
+				washer.check_washer( call_from_child=False )
 				talk( voice_goodnight1 )
 #				talk( voice_goodnight_rain if is_rain() else voice_goodnight_fine )
 				talk( voice_goodnight2 )

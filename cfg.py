@@ -23,7 +23,7 @@ SLIDE_SW_PIN	= 18	# 背面のスライドスイッチ（音声？）
 # センサー
 CDS_PIN			= 26	# 明暗検出CDSのGPIOピン(in)
 PIR_PIN			= 21	# 人感センサーピン
-
+PIR_VCC_PIN		= 20	# 人感センサーの電源ピン（zero基板の場所が足りずGPIOで供給）
 
 # --------------------- すべてのタイマ基準の元祖 ---------------------
 TIMER_TICK		= 0.05	# タイムの最小単位。メインループのsleep値なので微妙
@@ -61,9 +61,13 @@ WASHER_DOOR_CLOSE	= 2
 WASHER_TIMER_OFF	= 1	# 予約されていない
 WASHER_TIMER_2H		= 2	# 2時間タイマー
 WASHER_TIMER_4H		= 3 # 4時間タイマー
-WASHER_TIMER_NOW	= 4 # 洗浄中（出番無いカモ）
 
-CHECK_WASHER_INTERVAL_s = 60
+# 食器
+WASHER_DISHES_EMPTY	= 1
+WASHER_DISHES_DIRTY	= 2
+WASHER_DISHES_WASHED = 3 #洗浄完了（朝に洗浄確認のため）
+
+MONITOR_WASHER_INTERVAL_s = 60
 
 # --------------------- フロントボタン関係のタイマ ---------------------
 # 各種タイマ（マイクロセカンド単位）
@@ -89,6 +93,10 @@ SCREEN_SAVER_TIMER_m	= 5	# スクリーンセーバータイム（分）
 # バックライト制御用（setBackLightで使用）
 EPD_BACKLIGHT_SW_MAIN 	= 0
 EPD_BACKLIGHT_SW_SAVER 	= 1
+
+# 人感センサーチェック
+PIR_CHECK_INTERVAL_s	= 15
+PIR_THRESHOLD			= 0.01
 
 # --------------------- デバイスのオブジェクト ---------------------
 
@@ -332,8 +340,13 @@ def gpio_write( out, *pins ):
 set_pull_up_down( SLIDE_SW_PIN, pigpio.PUD_UP )
 set_pull_up_down( FRONT_BTN_PIN, pigpio.PUD_UP )
 
+# 人感センサー
+#set_pull_up_down( PIR_PIN, pigpio.PUD_DOWN )
+pi.set_mode( PIR_PIN, pigpio.INPUT )
+pi.set_pull_up_down( PIR_PIN, pigpio.PUD_OFF )
+pi.set_mode( PIR_VCC_PIN, pigpio.OUTPUT )
+
 # CDS（明暗）
-set_pull_up_down( PIR_PIN, pigpio.PUD_DOWN )
 #set_pull_up_down( CDS_PIN, pigpio.PUD_UP )
 pi.set_mode( CDS_PIN, pigpio.INPUT )
 pi.set_pull_up_down( CDS_PIN, pigpio.PUD_OFF )
