@@ -20,6 +20,7 @@ from bs4 import BeautifulSoup
 from cfg import *
 import globals as g
 import datetime
+import weather_icon
 from random import randrange as rnd
 
 voices_atui2 = [
@@ -30,6 +31,18 @@ voices_atui2 = [
 
 APPID = "dj00aiZpPURQYWhZNkxsWlRwTSZzPWNvbnN1bWVyc2VjcmV0Jng9ZGU-"
 POS   = "139.472086,35.359172"
+
+# OpenWeather API
+OW_API_KEY = 'ee2fa16463c7d123817fb43a5be6c65d'
+OW_LATITUDE = '35.359172'
+OW_LONGITUDE = '139.472086'
+OW_UNITS = 'metric'
+OW_BASE_URL = 'https://api.openweathermap.org/data/2.5/weather?'
+OW_URL = OW_BASE_URL + 'lat=' + OW_LATITUDE + '&lon=' + OW_LONGITUDE + '&units=' + OW_UNITS + '&appid=' + OW_API_KEY
+
+# Livedoor
+LD_WEATHER_ID = "140010"
+LD_WEATHER_URL = 'https://weather.tsukumijima.net/api/forecast/city/' + LD_WEATHER_ID
 
 # かかし（漢字ローマ字変換）エンジンのインスタンス
 kks = kakasi()
@@ -44,12 +57,18 @@ DICT_COMMA = {'、':' ', '。':'. '}
 # 雷雨接近中フラグ（予報が始まるとTrueになり、初回だけアラーム発信させるため）
 approaching_rain = False
 
+forecast_cache = [
+	["明日","天気","ファイル",0,0],
+	["明後日","天気","ファイル",0,0]
+]
+
+
+
 # ------------------------------------------------------------------------------
 def check_rain_rader()->None:
 	"""Yahooの雨雲レーダーをチェックして警報を出す
 	定期的にscheduleで呼び出されて、チェックを入れる（！）
 	パラメータも戻り値もなく、雨が降りそうなら音声警報を出すだけ
-
 	"""
 	global approaching_rain
 
@@ -127,6 +146,69 @@ def kanji2voice(message):
 		line+=1
 
 # ------------------------------------------------------------------------------
+def update_forecast_weather()->None:
+	"""
+	Livedoor天気予報にアクセスして天気情報を更新する
+	・多頻度で呼ばれるとしんどいので、shceduleから数時間おきに呼ばれる
+	・常時はcacheを返す
+	・結果は、forecast_cacheリストに格納
+	
+	"""
+	global forecast_cache
+
+	try:
+		# LiveDoor天気を取得（yahooでもいいような・・・）
+		ld_response = requests.get(LD_WEATHER_URL)
+		ld_weather = ld_response.json()
+
+	except Exception as e:
+		g.log( "WEATHER", "ネット接続なし")
+		return False
+
+	else:
+		# 翌日の天気予報
+		tomorrow_telop = ld_weather['forecasts'][1]['telop']
+		tomorrow_dt = datetime.datetime.strptime(ld_weather['forecasts'][1]['date'], '%Y-%m-%d').date()
+		tomorrow_date = tomorrow_dt.strftime('%m月%d日')
+		tomorow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
+		am_rain = ld_weather['forecasts'][1]['chanceOfRain']['T06_12']
+		pm_rain = ld_weather['forecasts'][1]['chanceOfRain']['T12_18']
+		forecast_cache[1]=tomorrow_date, tomorrow_telop, tomorow_image, am_rain, pm_rain
+
+		# 今日の天気予報
+		tomorrow_telop = ld_weather['forecasts'][0]['telop']
+		tomorrow_dt = datetime.datetime.strptime(ld_weather['forecasts'][0]['date'], '%Y-%m-%d').date()
+		tomorrow_date = tomorrow_dt.strftime('%m月%d日')
+		tomorow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
+		am_rain = ld_weather['forecasts'][0]['chanceOfRain']['T06_12']
+		pm_rain = ld_weather['forecasts'][0]['chanceOfRain']['T12_18']
+		forecast_cache[0]=tomorrow_date, tomorrow_telop, tomorow_image, am_rain, pm_rain
+
+def get_forecast_weather( days: int ):
+	return forecast_cache[days]
+
+def get_forecast_temp_rain( days:int ):
+	try:
+		res = requests.get("https://weather.yahoo.co.jp/weather/jp/14/4610.html")
+		soup = BeautifulSoup(res.text, "html.parser")
+		if( days==0 ):		# 今日の天気
+			temp_max 	= soup.select("#main div.forecastCity table tr td:nth-child(1) div ul li.high em")[0].contents[0]
+			temp_min 	= soup.select("#main div.forecastCity table tr td:nth-child(1) div ul li.low em")[0].contents[0]
+			rain_AM 	= soup.select("#main div.forecastCity table tr td:nth-child(1) div table tr.precip td:nth-child(3)")[0].contents[0]
+			rain_PM 	= soup.select("#main div.forecastCity table tr td:nth-child(1) div table tr.precip td:nth-child(4)")[0].contents[0]
+		elif( days==1 ):	# 明日の天気
+			temp_max 	= soup.select("#main div.forecastCity table tr td:nth-child(2) div ul li.high em")[0].contents[0]
+			temp_min 	= soup.select("#main div.forecastCity table tr td:nth-child(2) div ul li.low em")[0].contents[0]
+			rain_AM 	= soup.select("#main div.forecastCity table tr td:nth-child(2) div table tr.precip td:nth-child(3)")[0].contents[0]
+			rain_PM 	= soup.select("#main div.forecastCity table tr td:nth-child(2) div table tr.precip td:nth-child(4)")[0].contents[0]
+		
+		return temp_min, temp_max, rain_AM, rain_PM
+	
+	except Exception as e:
+		g.log( "WEATHER", f"ネット接続なし:{e}" )
+		return False, False, False, False
+
+# ------------------------------------------------------------------------------
 def check_weather_info( days:int, voice:int )->None:
 	"""	ヤフーニュースのトップページ情報を取得して喋る
 	メインルーチン（flowerやrainから呼ばれる）
@@ -138,38 +220,18 @@ def check_weather_info( days:int, voice:int )->None:
 	err = False
 
 	# 天気予報を拾ってくるので、エラーに備えてtry-exeption
-	try:
-		g.talk( ("kyo'u" if voice==0 else "ashi'ta")+"no te'nkiwo osirasesimasu.", TALK_FORCE)
-		#g.talk( "i'ma shira'betemasunode cho'tto oma'chikudasai.", TALK_FORCE )
 
+	g.talk( ("kyo'u" if voice==0 else "ashi'ta")+"no te'nkiwo osirasesimasu.", TALK_FORCE)
 
-		# 気温＆降水確率
-		# 当初は気象庁APIだったけど面倒くさくなったので、Yahoo天気予報をスクレイピング
-		res = requests.get("https://weather.yahoo.co.jp/weather/jp/14/4610.html")
-		soup = BeautifulSoup(res.text, "html.parser")
+	# 気温＆降水確率
+	# 当初は気象庁APIだったけど面倒くさくなったので、Yahoo天気予報をスクレイピング
+	temp_min, temp_max, rain_AM, rain_PM = get_forecast_temp_rain( days )
 
-		if( days==0 ):		# 今日の天気
-			temp_max 	= soup.select("#main div.forecastCity table tr td:nth-child(1) div ul li.high em")[0].contents[0]
-			temp_min 	= soup.select("#main div.forecastCity table tr td:nth-child(1) div ul li.low em")[0].contents[0]
-			rain_AM 	= soup.select("#main div.forecastCity table tr td:nth-child(1) div table tr.precip td:nth-child(3)")[0].contents[0]
-			rain_PM 	= soup.select("#main div.forecastCity table tr td:nth-child(1) div table tr.precip td:nth-child(4)")[0].contents[0]
-		elif( days==1 ):	# 明日の天気
-			temp_max 	= soup.select("#main div.forecastCity table tr td:nth-child(2) div ul li.high em")[0].contents[0]
-			temp_min 	= soup.select("#main div.forecastCity table tr td:nth-child(2) div ul li.low em")[0].contents[0]
-			rain_AM 	= soup.select("#main div.forecastCity table tr td:nth-child(2) div table tr.precip td:nth-child(3)")[0].contents[0]
-			rain_PM 	= soup.select("#main div.forecastCity table tr td:nth-child(2) div table tr.precip td:nth-child(4)")[0].contents[0]
-		else:
-			err = True
-
-	except Exception as e:
+	if temp_min==False:
 		g.log( "weather", str(e) )
 		g.talk("te'nki yo'houni tunagarimasen.", TALK_FORCE)
 
 	else:
-		# 天気概況（長い・・・）
-#		kanji2voice(weather+"\n")
-#		time.sleep(1)
-
 		# 降水確率
 		if( rain_AM!="---" ):	# 過ぎた時刻の場合は"---"となるためスキップ
 			rain_AM = int( str(rain_AM)[:-1] )
@@ -194,33 +256,10 @@ def check_weather_info( days:int, voice:int )->None:
 		temp_max = int(str(temp_max))
 		temp_min = int(str(temp_min))
 		g.talk( "yosou'/saiko'ukionwa <NUMK VAL="+str(temp_max)+" counter=do'> de'su.", TALK_FORCE)
-#		g.talk( "yosou'/saite'ikionwa <NUMK VAL="+str(temp_min)+" counter=do'> de'su.", TALK_FORCE)		
+	#		g.talk( "yosou'/saite'ikionwa <NUMK VAL="+str(temp_min)+" counter=do'> de'su.", TALK_FORCE)		
 
 		if(   temp_max>35 ) : g.talk( "mo-retuni atu'soudesune.", TALK_FORCE )
 		elif( temp_max>30 ) : g.talk( voices_atui2[rnd(len(voices_atui2))], TALK_FORCE )
 		elif( temp_max>25 ) : g.talk( "suko'si sugo'siyasuku narima'sitane.", TALK_FORCE )
 		else				: g.talk( "ma'a futu'u de'su.", TALK_FORCE )
-
-
-		# ここから先は初期の気象概況を説明していたころの名残
-		# あまりに音声が長いのでもうやらない
-
-
-		#res = requests.get("https://weather.yahoo.co.jp/weather/jp/14/?day=1")
-		#soup = BeautifulSoup(res.text, "html.parser")
-
-		## 都道府県概況を拾ってくる（スクレイピング）
-		#weather = soup.find('div', class_="cmnMod condition").text
-	
-		#weather = weather.replace(" ","")			# 空白削除
-		#weather = re.sub("\n+","\n",weather)		# 連続改行削除
-		#weather = re.sub("。\n","\n", weather)		# 句点を改行にする
-		#weather = re.sub("。","\n", weather)		# 句点を改行にする
-		#weather = weather[1:]						# 先頭の改行削除
-		#weather = weather.split("\n")				# いったん改行でリスト化
-
-		#del weather[0]
-		#weather.pop()
-		#weather.pop()
-		#weather = "\n".join(weather)
 

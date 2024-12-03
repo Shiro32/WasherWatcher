@@ -80,16 +80,16 @@ def _receive_message_thread()->None:
 
 			elif data=="open":
 				washer.debug_door = "open"
-				g.log("COMM", "ドアOPEN")
+				g.log("COMM", "「ドアOPEN」を受信")
 			elif data=="close":
 				washer.debug_door = "close"
-				g.log("COMM", "ドアCLOSE")
+				g.log("COMM", "「ドアCLOSE」を受信")
 			elif data=="off":
 				washer.debug_timer = "off"
-				g.log("COMM", "タイマーOFF")
+				g.log("COMM", "「タイマーOFF」を受信")
 			elif data=="2H":
 				washer.debug_timer = "2H"
-				g.log( "COMM", "タイマー2H")
+				g.log( "COMM", "「タイマー2H」を受信")
 			elif data=="check":
 				washer.check_washer(call_from_child=False)
 			elif data=="monitor":

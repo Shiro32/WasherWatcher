@@ -33,5 +33,5 @@ else:
 
 	w = im.shape[1]
 	h = im.shape[0]
-	im = im[int(h/3*2):int(h/3*3), int(w/3*1):int(w/3*2)] #top:bottom, left:right
+#	im = im[int(h/3*2):int(h/3*3), int(w/3*1):int(w/3*2)] #top:bottom, left:right
 	cv2.imwrite( sys.argv[1], im )

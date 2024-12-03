@@ -213,7 +213,7 @@ def draw_dialog()->None:
 	・update_display関数などから呼ばれて、メイン画面の真ん中にダイアログを出す
 	"""
 	if _dialog_show_flag:
-		image_main_buf.paste( _dialog_icon, (int((EPD_WIDTH-_dialog_icon.width)/2) ,int((EPD_HEIGHT-_dialog_icon.height)/2)) )
+		image_main_buf.paste( _dialog_icon, (int((EPD_WIDTH-_dialog_icon.width)/2) ,int(((EPD_HEIGHT-SBAR_HEIGHT)-_dialog_icon.height)/2)) )
 
 def check_dialog()->None:
 	"""ダイアログ表示中にフロントボタンを監視する
@@ -360,7 +360,7 @@ def check_PIR()->None:
 	pir_on_count+=pi.read( PIR_PIN )
 
 	if pir_check_count>50:
-		log( "PIR", f"ON:{pir_on_count}/{pir_check_count}" )
+		#log( "PIR", f"ON:{pir_on_count}/{pir_check_count}" )
 		if pir_on_count / pir_check_count > PIR_THRESHOLD:
 			reset_screen_saver()
 		
@@ -608,10 +608,11 @@ def check_sleep()->None:
 
 			# 寝るとき
 			if time_mode >= TIME_MODE_SLEEP:
-				washer.check_washer( call_from_child=False )
-				talk( voice_goodnight1 )
-#				talk( voice_goodnight_rain if is_rain() else voice_goodnight_fine )
-				talk( voice_goodnight2 )
+				if washer.check_washer( call_from_child=False ):
+					# 食洗器に問題がない時だけお休みあいさつ
+					talk( voice_goodnight1 )
+	#				talk( voice_goodnight_rain if is_rain() else voice_goodnight_fine )
+					talk( voice_goodnight2 )
 			elif time_mode == TIME_MODE_DAY:
 				talk( voice_kurai )
 			else:

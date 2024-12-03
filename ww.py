@@ -68,6 +68,7 @@ import rain
 import comm
 import clock
 import washer
+import weather
 
 print("各種import終了")
 
@@ -87,12 +88,13 @@ system_tick = 0
 draw_normal_fujikyun_counter = 1000
 
 
-PIC_DOOR_OPEN	= Image.open("icon/icon_door_open.png")
-PIC_DOOR_CLOSE	= Image.open("icon/icon_door_close.png")
+PIC_DOOR_OPEN	= Image.open("icon/icon_unlock.png")
+PIC_DOOR_CLOSE	= Image.open("icon/icon_lock.png")
 PIC_TIMER_OFF	= Image.open("icon/icon_cancel.png")
-PIC_TIMER_ON	= Image.open("icon/icon_clock2.png")
+PIC_TIMER_ON	= Image.open("icon/icon_clock.png")
 PIC_DISHES_OK	= Image.open("icon/icon_smile.png")
-PIC_DISHES_NG	= Image.open("icon/icon_caution.png")
+PIC_DISHES_NG	= Image.open("icon/icon_radiation.png")
+
 
 # ------------------------------------------------------------------------------
 def update_display():
@@ -141,13 +143,24 @@ def update_display():
 	g.image_sbar_buf.paste( SBAR_APPLE_ICON,  (30,0) )
 	g.draw_sbar.line( (0, SBAR_HEIGHT-1, SBAR_WIDTH-1, SBAR_HEIGHT-1), fill="black", width=1 )
 
-	# 時計
-	g.draw_sbar.text( SBAR_CLOCK_POS, datetime.datetime.now().strftime("%H:%M"), fill="black", font=menu_font )
+	# 時計（デカく書くようになったので不要）
+#	g.draw_sbar.text( SBAR_CLOCK_POS, datetime.datetime.now().strftime("%H:%M"), fill="black", font=menu_font )
 
 	# ドア・タイマ・食器
-	g.image_sbar_buf.paste(PIC_DOOR_OPEN if washer.washer_door==WASHER_DOOR_OPEN else PIC_DOOR_CLOSE, SBAR_DOOR_POS)
-	g.image_sbar_buf.paste(PIC_TIMER_OFF if washer.washer_timer==WASHER_TIMER_OFF else PIC_TIMER_ON, SBAR_TIMER_POS)
-	g.image_sbar_buf.paste(PIC_DISHES_NG if washer.washer_dishes==WASHER_DISHES_DIRTY else PIC_DISHES_OK, SBAR_DISHES_POS)
+	x = 180
+	if washer.washer_door == WASHER_DOOR_OPEN:
+		g.image_sbar_buf.paste(PIC_DOOR_OPEN, (x, 1))
+		x-=18
+	
+	if washer.washer_timer!=WASHER_TIMER_OFF:
+		g.image_sbar_buf.paste(PIC_TIMER_ON, (x, 1))
+		x-=18
+	
+	if washer.washer_dishes==WASHER_DISHES_DIRTY:
+		g.image_sbar_buf.paste(PIC_DISHES_NG, (x, 1))
+	#g.image_sbar_buf.paste(PIC_DOOR_OPEN if washer.washer_door==WASHER_DOOR_OPEN else PIC_DOOR_CLOSE, SBAR_DOOR_POS)
+	#g.image_sbar_buf.paste(PIC_TIMER_OFF if washer.washer_timer==WASHER_TIMER_OFF else PIC_TIMER_ON, SBAR_TIMER_POS)
+	#g.image_sbar_buf.paste(PIC_DISHES_NG if washer.washer_dishes==WASHER_DISHES_DIRTY else PIC_DISHES_OK, SBAR_DISHES_POS)
 
 	# 各ウェザーモードでの追加描画（ポップアップ、雨・晴れアイコン）を行う
 	rain.update_weather()
@@ -162,6 +175,7 @@ def update_display():
 
 draw_normal_old_fujikyun = ""
 
+
 def draw_normal()->None:
 	"""【モード1】ノーマル表示（水分量に応じて、ふじきゅんを描き分ける）
 	・天気予報
@@ -173,33 +187,47 @@ def draw_normal()->None:
 	global draw_normal_fujikyun_counter, draw_normal_old_fujikyun
 
 	g.log("draw_normal", "begin")
-	draw_normal_fujikyun_counter+=1
 
-	if( draw_normal_fujikyun_counter>FUJIKYUN_UPDATE_INTERVAL_t ):
-		draw_normal_fujikyun_counter = 0
-		draw_normal_old_fujikyun = PICS_NORMAL[ rnd(len(PICS_NORMAL)) ]
+	# 各領域を作る
+	g.draw_main.rectangle(MAIN_UPPER_AREA, 			fill=(150,150,255))
+	g.draw_main.rectangle(MAIN_LOWER_AREA,			fill=(150,255,150))
 
-#	if draw_normal_old_fujikyun!="":	g.image_main_buf.paste( draw_normal_old_fujikyun )
-
-	g.draw_main.rectangle((0,0,MAIN_WIDTH,MAIN_HEIGHT/2), fill=(150,150,255))
-	g.draw_main.rectangle((0,MAIN_HEIGHT/2,MAIN_WIDTH,MAIN_HEIGHT), fill=(150,255,150))
-
+	# 上半分に巨大時計
 	dt = datetime.datetime.now()
-	#g.draw_main.text((0,5), dt.strftime("%m/%d %a"), font=digitalMiddleFont, fill="black")
-	g.draw_main.text((5,50), dt.strftime("%H:%M"), font=clockLargeFont, fill="black")
-
+	g.draw_main.text((5,20), dt.strftime("%H:%M"), font=clockLargeFont, fill="black")
 
 	# 幅240, 高さ260
 
 	# ゴミ出し情報
-	gomi = Image.open("icon/gomi/gomi_plastic.png" ).resize((100,100))
-	g.image_main_buf.paste(gomi, (120+10,130+5), gomi)
+#	gomi = Image.open("icon/gomi/gomi_plastic.png" ).resize((100,100))
+#	g.image_main_buf.paste(gomi, (120+10,130+5), gomi)
+
 
 	# 天気情報
-	tenki = Image.open("icon/weather/snow.png").resize((100,100))
-	g.image_main_buf.paste(tenki, (0,130+10 ), tenki)
-	g.draw_main.text( (20,210), "50", font=digitalMiddleFont, fill="black")
-	g.draw_main.text( (100,210), "%", font=unitFont, fill="black")
+	# 時刻によって、今日の天気か明日の天気を選ばないとあかん
+	dt_now = datetime.datetime.now()
+	h = dt_now.hour
+	if h>=0 and h<9: x=0
+	if h>=9 and h<=24: x=1
+	day, telop, img, am_rain, pm_rain = weather.get_forecast_weather(x)
+
+	g.draw_main.text( (120 ,100), day, font=normal_font22, fill="black", anchor="ma")
+
+	tenki = Image.open(img).resize((100,100))
+	g.image_main_buf.paste(tenki, (5,125 ), tenki)
+	g.draw_main.text( (120/2,230), telop, font=normal_font22, fill="black", anchor="ma" )
+
+	g.draw_main.text( (120, 125+15), "昼", font=normal_font20, fill="black" )
+	g.draw_main.text( (225, 125+5), am_rain[:-1], font=digital_font50, anchor="ra", fill="black")
+	g.draw_main.text( (220, 160), "%",  font=normal_font14, fill="black")
+
+	g.draw_main.text( (120, 0+200+15), "夜", font=normal_font20, fill="black" )
+#	g.draw_main.text( (225, 0+200), pm_rain[:-1], font=digital_font50, anchor="ra", fill="black")
+	g.draw_main.text( (225, 0+200), "90", font=digital_font50, anchor="ra", fill="black")
+	g.draw_main.text( (220, 35+200-10), "%",  font=normal_font14, fill="black")
+
+	g.draw_main.line( (120, 188, 240, 188), width=2, fill="black")
+
 
 # ------------------------------------------------------------------------------
 
@@ -278,10 +306,12 @@ def init_at_boot()->None:
 	g.check_IP_address()
 
 	# 各種自動実行のスケジューリング開始
-#	schedule.every(MONITOR_WASHER_INTERVAL_s)	.seconds.do(washer.monitor_washer)
+	schedule.every(MONITOR_WASHER_INTERVAL_s)	.seconds.do(washer.monitor_washer)
 	schedule.every(DISP_UPDATE_INTERVAL_s)	.seconds.do(update_display) # 画面更新（最短10秒）
 	schedule.every().hour.at("00:00")		.do(rain.oclock)		# 時報処理
 	schedule.every(LED_BLINK_INTERVAL_s)	.seconds.do(g.handle_LED)		# フロントLED部リンク
+	schedule.every(60).minutes.do(weather.update_forecast_weather)
+	weather.update_forecast_weather()
 
 	# RAINの時計処理
 	g.time_mode_check() # TODO: なんじゃこりゃ？
@@ -354,8 +384,9 @@ if __name__ == "__main__":
 				g.reset_front_button_status()
 
 				# 現在の次のモードへ遷移
-				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_CLOCK, DISP_MODE_USEFUL, DISP_MODE_DEVICE_INFO][(disp_mode+1)%4]
-#				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_TREND, DISP_MODE_MODE4, DISP_MODE_CLOCK, DISP_MODE_DEVICE_INFO][(disp_mode+1)%5]
+				washer.preview_washser()
+
+#				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_CLOCK, DISP_MODE_USEFUL, DISP_MODE_DEVICE_INFO][(disp_mode+1)%4]
 				g.update_display_immediately()
 
 

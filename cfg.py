@@ -67,7 +67,9 @@ WASHER_DISHES_EMPTY	= 1
 WASHER_DISHES_DIRTY	= 2
 WASHER_DISHES_WASHED = 3 #洗浄完了（朝に洗浄確認のため）
 
-MONITOR_WASHER_INTERVAL_s = 60
+MONITOR_WASHER_INTERVAL_s = 30
+WASHER_DIRTY_DISHES_INTERVAL_s = 10
+WASHER_DIRTY_DISHES_TIMER_s = 30
 
 # --------------------- フロントボタン関係のタイマ ---------------------
 # 各種タイマ（マイクロセカンド単位）
@@ -146,6 +148,21 @@ clockLargeFont		= ImageFont.truetype( 'segment-bold.ttf', 65 )
 clockNormalFont 	= ImageFont.truetype( 'Font.ttc', 32)
 
 menu_font  			= ImageFont.truetype( 'Font.ttc', 20)
+
+normal_font10		= ImageFont.truetype( "Font.ttc", 10 )
+normal_font12		= ImageFont.truetype( "Font.ttc", 12 )
+normal_font14		= ImageFont.truetype( "Font.ttc", 14 )
+normal_font16		= ImageFont.truetype( "Font.ttc", 16 )
+normal_font18		= ImageFont.truetype( "Font.ttc", 18 )
+normal_font20		= ImageFont.truetype( "Font.ttc", 20 )
+normal_font22		= ImageFont.truetype( "Font.ttc", 22 )
+normal_font24		= ImageFont.truetype( "Font.ttc", 24 )
+normal_font30		= ImageFont.truetype( "Font.ttc", 30 )
+normal_font40		= ImageFont.truetype( "Font.ttc", 40 )
+
+digital_font50		= ImageFont.truetype( "segment-bold.ttf", 50 )
+digital_font60		= ImageFont.truetype( "segment-bold.ttf", 60 )
+
 
 # ------------------------------------------------------------------------------
 
@@ -254,6 +271,8 @@ ICON_RAIN					= Image.open( "icon/icon_rain.png")
 
 # ------------------------------------------------------------------------------
 # 各種イラスト
+PIC_DIRTY		= Image.open( "face/dirty2.jpg" )
+PIC_DIRTY_OK	= Image.open( "face/dirty_ok2.jpg" )
 
 PIC_RAIN		= Image.open( "face/rain.jpg" )
 PIC_NORMAL1 = Image.open( "face/normal1.jpg" )
@@ -287,6 +306,12 @@ DIALOG_TIMER	= 30	# １回あたりのダイアログ表示秒
 FUJIKYUN_UPDATE_INTERVAL_t = 20
 
 MODE_NORMAL_MOIST_POS = (40, 150)
+
+MAIN_UPPER_AREA			= (0,	0,		MAIN_WIDTH, 100		)
+MAIN_LOWER_AREA			= (0,	101,	MAIN_WIDTH, MAIN_HEIGHT)
+MAIN_LOWER_LEFT_AREA	= (0,	101,	120, MAIN_HEIGHT	)
+MAIN_LOWER_RIGHT_AREA 	= (121,	101,	MAIN_WIDTH, MAIN_HEIGHT)
+
 
 # ------------------------------------------------------------------------------h
 # MODE2（時計表示）関係
