@@ -362,6 +362,7 @@ def check_PIR()->None:
 	if pir_check_count>50:
 		#log( "PIR", f"ON:{pir_on_count}/{pir_check_count}" )
 		if pir_on_count / pir_check_count > PIR_THRESHOLD:
+			short_wakeup()
 			reset_screen_saver()
 		
 		pir_check_count = pir_on_count = 0
