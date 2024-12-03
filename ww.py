@@ -222,8 +222,8 @@ def draw_normal()->None:
 	g.draw_main.text( (220, 160), "%",  font=normal_font14, fill="black")
 
 	g.draw_main.text( (120, 0+200+15), "夜", font=normal_font20, fill="black" )
-#	g.draw_main.text( (225, 0+200), pm_rain[:-1], font=digital_font50, anchor="ra", fill="black")
-	g.draw_main.text( (225, 0+200), "90", font=digital_font50, anchor="ra", fill="black")
+	g.draw_main.text( (225, 0+200), pm_rain[:-1], font=digital_font50, anchor="ra", fill="black")
+	#g.draw_main.text( (225, 0+200), "90", font=digital_font50, anchor="ra", fill="black")
 	g.draw_main.text( (220, 35+200-10), "%",  font=normal_font14, fill="black")
 
 	g.draw_main.line( (120, 188, 240, 188), width=2, fill="black")

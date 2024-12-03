@@ -142,7 +142,7 @@ def _pattern_matching(image, template, max_zoom)->Tuple[float, float]:
 		corr = 0
 		zoom = 100
 
-		for i in range(100, max_zoom+1 , 3):
+		for i in range(100, max_zoom+1 , 5):
 
 			# テンプレートの拡大
 			tpl2 = cv2.resize(tpl, None, fx=i/100, fy=i/100,interpolation=cv2.INTER_CUBIC)
@@ -179,15 +179,15 @@ def _monitor_washer_now()->None:
 	#zoomは全部130
 	# タイマー０
 	corr, zoom = _pattern_matching( img, TEMP_LIGHT_OFF, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_OFF, "CORR":corr} )
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<109 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_OFF, "CORR":corr} )
 
 	# タイマー2H
 	corr, zoom = _pattern_matching( img, TEMP_LIGHT_2H, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_2H, "CORR":corr} )
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<109 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_2H, "CORR":corr} )
 
 	# タイマー4H
 	corr, zoom = _pattern_matching( img, TEMP_LIGHT_4H, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<103 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_4H, "CORR":corr} )
+	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<109 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_4H, "CORR":corr} )
 
 	#昇順ソート
 	results = sorted(results, key=lambda x:x["CORR"], reverse=True)
@@ -238,10 +238,10 @@ def monitor_washer()->None:
 		timer = WASHER_TIMER_OFF
 
 		g.log( "WASHER", "DEBUGで食洗器チェック")
-		if debug_door=="open": door = WASHER_DOOR_OPEN
-		if debug_door=="close": door = WASHER_DOOR_CLOSE
-		if debug_timer=="off": timer = WASHER_TIMER_OFF
-		if debug_timer=="2H": timer=WASHER_TIMER_2H
+		if debug_door=="open"	: door = WASHER_DOOR_OPEN
+		if debug_door=="close"	: door = WASHER_DOOR_CLOSE
+		if debug_timer=="off"	: timer = WASHER_TIMER_OFF
+		if debug_timer=="2H"	: timer=WASHER_TIMER_2H
 	else:
 		# １ショット撮影してドア・タイマの状態をチェック
 		door, timer = _monitor_washer_now()
@@ -336,7 +336,7 @@ def check_washer( call_from_child:bool=False )->bool:
 		else:
 			if call_from_child==False:
 				g.log("WASHER","食器が入っていて、タイマーはセットされています！")
-				g.talk( "ta'ima-wa se'ttosareteimasu.")
+				g.talk( "shokuse'nkiwa daijo'ubu desu.")
 				g.talk( "a'nsinsite oya'suminasai.")
 			start_alert_timer_ok()
 			return True
