@@ -95,10 +95,7 @@ def _receive_message_thread()->None:
 			elif data=="monitor":
 				washer.monitor_washer()
 			elif data=="status":
-				door = washer.washer_door
-				timer = washer.washer_timer
-				dishes = washer.washer_dishes
-				g.log("COMM",f"ドア：{door}/タイマ：{timer}/皿：{dishes}")
+				g.log("COMM", f"現状認識：{washer.washer_status()}")
 
 			else:
 				g.log( "COMM RECV", f"知らないメッセージ:{data}")
