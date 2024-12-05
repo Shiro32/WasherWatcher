@@ -51,16 +51,13 @@ import subprocess
 import datetime
 import random
 from random import randrange as rnd
-
-
 import schedule
 import os
 import ipget
 
-import traceback
-
 print("公式import終了")
 
+# 自作モジュールたち
 from cfg import *   # 定数関係
 import globals as g
 
@@ -70,7 +67,7 @@ import clock
 import washer
 import weather
 
-print("各種import終了")
+g.log("MAIN", "各種import終了")
 
 # ------------------------------------------------------------------------------
 # 各種音声
@@ -87,7 +84,7 @@ update_counter = 0									# 画面更新カウンタ（１分単位）
 system_tick = 0
 draw_normal_fujikyun_counter = 1000
 
-
+# ステータスバーアイコン
 PIC_DOOR_OPEN	= Image.open("icon/icon_unlock.png")
 PIC_DOOR_CLOSE	= Image.open("icon/icon_lock.png")
 PIC_TIMER_OFF	= Image.open("icon/icon_cancel.png")
@@ -121,14 +118,6 @@ def update_display():
 		g.clear_image(); update_counter = 0
 		draw_normal()
 	
-#	elif disp_mode==DISP_MODE_USEFUL and update_counter>=DISP_MODE_USEFUL_UPDATE_INTERVAL :
-#		g.clear_image(); update_counter = 0
-#		draw_mode4()
-
-	if disp_mode==DISP_MODE_CLOCK and update_counter>=DISP_MODE_CLOCK_UPDATE_INTERVAL :
-		g.clear_image(); update_counter = 0
-		clock.draw_clock()
-
 	elif disp_mode==DISP_MODE_DEVICE_INFO and update_counter>=DISP_MODE_DEVICE_INFO_UPDATE_INTERVAL :
 		g.clear_image(); update_counter = 0
 		display_device_info()
@@ -158,9 +147,6 @@ def update_display():
 	
 	if washer.washer_dishes==WASHER_DISHES_DIRTY:
 		g.image_sbar_buf.paste(PIC_DISHES_NG, (x, 1))
-	#g.image_sbar_buf.paste(PIC_DOOR_OPEN if washer.washer_door==WASHER_DOOR_OPEN else PIC_DOOR_CLOSE, SBAR_DOOR_POS)
-	#g.image_sbar_buf.paste(PIC_TIMER_OFF if washer.washer_timer==WASHER_TIMER_OFF else PIC_TIMER_ON, SBAR_TIMER_POS)
-	#g.image_sbar_buf.paste(PIC_DISHES_NG if washer.washer_dishes==WASHER_DISHES_DIRTY else PIC_DISHES_OK, SBAR_DISHES_POS)
 
 	# 各ウェザーモードでの追加描画（ポップアップ、雨・晴れアイコン）を行う
 	rain.update_weather()
@@ -186,7 +172,7 @@ def draw_normal()->None:
 
 	global draw_normal_fujikyun_counter, draw_normal_old_fujikyun
 
-	g.log("draw_normal", "begin")
+	g.log("DRAW_NORMAL", "begin")
 
 	# 各領域を作る
 	g.draw_main.rectangle(MAIN_UPPER_AREA, 			fill=(150,150,255))
@@ -205,10 +191,9 @@ def draw_normal()->None:
 
 	# 天気情報
 	# 時刻によって、今日の天気か明日の天気を選ばないとあかん
-	dt_now = datetime.datetime.now()
-	h = dt_now.hour
-	if h>=0 and h<9: x=0
-	if h>=9 and h<=24: x=1
+	h = datetime.datetime.now().hour
+	if h>=0 and h<  9: x=0 # 朝までは当日天気
+	if h>=9 and h<=24: x=1 # 9時以降は翌日天気
 	day, telop, img, am_rain, pm_rain = weather.get_forecast_weather(x)
 
 	g.draw_main.text( (120 ,100), day, font=normal_font22, fill="black", anchor="ma")
@@ -217,21 +202,23 @@ def draw_normal()->None:
 	g.image_main_buf.paste(tenki, (5,125 ), tenki)
 	g.draw_main.text( (120/2,230), telop, font=normal_font22, fill="black", anchor="ma" )
 
-	g.draw_main.text( (120, 125+15), "昼", font=normal_font20, fill="black" )
+	# 午前中降水確率
+#	g.draw_main.text( (120, 125+15), "昼", font=normal_font20, fill="black" )
 	g.draw_main.text( (225, 125+5), am_rain[:-1], font=digital_font50, anchor="ra", fill="black")
 	g.draw_main.text( (220, 160), "%",  font=normal_font14, fill="black")
 
-	g.draw_main.text( (120, 0+200+15), "夜", font=normal_font20, fill="black" )
+	g.draw_main.line( (120, 188, 240, 188), width=2, fill="black")
+
+	# 午後降水確率
+#	g.draw_main.text( (120, 0+200+15), "夜", font=normal_font20, fill="black" )
 	g.draw_main.text( (225, 0+200), pm_rain[:-1], font=digital_font50, anchor="ra", fill="black")
 	#g.draw_main.text( (225, 0+200), "90", font=digital_font50, anchor="ra", fill="black")
 	g.draw_main.text( (220, 35+200-10), "%",  font=normal_font14, fill="black")
 
-	g.draw_main.line( (120, 188, 240, 188), width=2, fill="black")
 
 
 # ------------------------------------------------------------------------------
 
-print("ここ大丈夫か？")
 (_dev_print_h, _dev_print_y) = (18,40)
 
 def _print_one(label:str, msg:str):
@@ -306,11 +293,11 @@ def init_at_boot()->None:
 	g.check_IP_address()
 
 	# 各種自動実行のスケジューリング開始
-	schedule.every(MONITOR_WASHER_INTERVAL_s)	.seconds.do(washer.monitor_washer)
-	schedule.every(DISP_UPDATE_INTERVAL_s)	.seconds.do(update_display) # 画面更新（最短10秒）
-	schedule.every().hour.at("00:00")		.do(rain.oclock)		# 時報処理
-	schedule.every(LED_BLINK_INTERVAL_s)	.seconds.do(g.handle_LED)		# フロントLED部リンク
-	schedule.every(60).minutes.do(weather.update_forecast_weather)
+	schedule.every(MONITOR_WASHER_INTERVAL_s).seconds	.do(washer.monitor_washer)
+	schedule.every(DISP_UPDATE_INTERVAL_s).seconds		.do(update_display) # 画面更新（最短10秒）
+	schedule.every().hour.at("00:00")					.do(rain.oclock)		# 時報処理
+	schedule.every(LED_BLINK_INTERVAL_s).seconds		.do(g.handle_LED)		# フロントLED部リンク
+	schedule.every(60).minutes							.do(weather.update_forecast_weather)
 	weather.update_forecast_weather()
 
 	# RAINの時計処理
@@ -323,7 +310,7 @@ def init_at_boot()->None:
 	# 通信回線
 	comm.init_comm()
 
-	# 人感センサー電源（忘れずに！）
+	# 人感センサー電源（普通のGPIOからVSSを取っているので、HIGHにするのを忘れずに！）
 	pi.write( PIR_VCC_PIN, pigpio.HIGH )
 
 	# 初回描画は早めに（ちっとも早くならないけど）
@@ -332,19 +319,14 @@ def init_at_boot()->None:
 	g.talk( "hoge" )
 
 	#プレビュー
-
-#	g.talk("pure'byu-desu. ichi'awasega/owa'ttara hida'rino/bo'tanwo osite'kudasai")
-#	washer.preview_washser()
-#	g.talk("pure'byu-/shuuryoudesu. kansiwo hajimema'su.")
-	#door, timer = washer.check_washer_now()
-	#print( f"{door=} / {timer=}" )
+	washer.preview_washser()
 
 # ------------------------------- main -------------------------------
 if __name__ == "__main__":
 
-	print("ようやく軌道！")
-	init_at_boot()
+	g.log("MAIN", "ようやく起動完了！")
 
+	init_at_boot()
 
 	# ここからメインルーチン
 	try:
@@ -367,7 +349,6 @@ if __name__ == "__main__":
 			if( g.update_display_immediately_flag ):
 				update_display()
 
-
 			# 1クリック（警報なっていたら止めるとか）
 			# 1クリック処理を引き受けそうな関数を呼び出してからクリア
 			btn = g.front_button_status()
@@ -383,16 +364,18 @@ if __name__ == "__main__":
 				g.front_button_sound()
 				g.reset_front_button_status()
 
-				# 現在の次のモードへ遷移
+				# プレビュー
 				washer.preview_washser()
 
+				# 現在の次のモードへ遷移
 #				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_CLOCK, DISP_MODE_USEFUL, DISP_MODE_DEVICE_INFO][(disp_mode+1)%4]
 				g.update_display_immediately()
 
 
 			# 最長ロングプレス（電源オフ）
 			if btn==PUSH_SUPER_LONGPRESS:
-				washer.preview_washser()
+				pass
+#				washer.preview_washser()
 				#g.front_button_sound()
 				#g.reset_front_button_status()
 
@@ -408,6 +391,22 @@ if __name__ == "__main__":
 				#pi.stop()
 				#os.system( "sudo shutdown now" )
 				#sys.exit()
+
+			# スライドスイッチをポーリングで検出してシャットダウン
+			if pi.read(SLIDE_SW_PIN)==pigpio.HIGH:
+				g.talk( voice_shutdown1, True)
+				g.clear_image()
+				g.image_buf.paste( ICON_BYE_MAC, (0,0) )
+				g.epd_display( False )
+
+				g.log( "SHUTDOWN" )
+				g.talk( voice_shutdown2, True )
+				g.talk( voice_shutdown3, False )
+
+				pi.stop()
+				os.system( "sudo shutdown now" )
+				sys.exit()
+
 
 	except KeyboardInterrupt:
 		print( "bye" )

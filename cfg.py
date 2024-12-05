@@ -160,6 +160,8 @@ normal_font24		= ImageFont.truetype( "Font.ttc", 24 )
 normal_font30		= ImageFont.truetype( "Font.ttc", 30 )
 normal_font40		= ImageFont.truetype( "Font.ttc", 40 )
 
+digital_font30		= ImageFont.truetype( "segment-bold.ttf", 30 )
+digital_font40		= ImageFont.truetype( "segment-bold.ttf", 40 )
 digital_font50		= ImageFont.truetype( "segment-bold.ttf", 50 )
 digital_font60		= ImageFont.truetype( "segment-bold.ttf", 60 )
 
@@ -275,27 +277,9 @@ PIC_DIRTY		= Image.open( "face/dirty2.jpg" )
 PIC_DIRTY_OK	= Image.open( "face/dirty_ok2.jpg" )
 
 PIC_RAIN		= Image.open( "face/rain.jpg" )
-PIC_NORMAL1 = Image.open( "face/normal1.jpg" )
-PIC_NORMAL2 = Image.open( "face/normal2.jpg" )
-PIC_NORMAL3 = Image.open( "face/normal3.jpg" )
-PIC_NORMAL4 = Image.open( "face/normal4.jpg" )
-PIC_NORMAL5 = Image.open( "face/normal5.jpg" )
-PIC_NORMAL6 = Image.open( "face/normal6.jpg" )
-PIC_NORMAL7 = Image.open( "face/normal7.jpg" )
-PIC_NORMAL8 = Image.open( "face/normal8.jpg" )
-PIC_NORMAL9 = Image.open( "face/normal9.jpg" )
-PIC_NORMAL10 = Image.open( "face/normal10.jpg" )
-PIC_NORMAL11 = Image.open( "face/normal11.jpg" )
-PIC_NORMAL12 = Image.open( "face/normal12.jpg" )
-PICS_NORMAL = [
-	PIC_NORMAL1, PIC_NORMAL2, PIC_NORMAL3, PIC_NORMAL4,
-	PIC_NORMAL5, PIC_NORMAL6, PIC_NORMAL7, PIC_NORMAL8,
-	PIC_NORMAL9, PIC_NORMAL10, PIC_NORMAL11, PIC_NORMAL12
-]
 
 # ------------------------------------------------------------------------------
 # 汎用ダイアログ関係
-
 DIALOG_POS		= (50, 30)
 DIALOG_TIMER	= 30	# １回あたりのダイアログ表示秒
 
@@ -312,26 +296,6 @@ MAIN_LOWER_AREA			= (0,	101,	MAIN_WIDTH, MAIN_HEIGHT)
 MAIN_LOWER_LEFT_AREA	= (0,	101,	120, MAIN_HEIGHT	)
 MAIN_LOWER_RIGHT_AREA 	= (121,	101,	MAIN_WIDTH, MAIN_HEIGHT)
 
-
-# ------------------------------------------------------------------------------h
-# MODE2（時計表示）関係
-MODE_CLOCK_CLOCK_POS			= (10 , 85)
-MODE_CLOCK_DATE_POS			= (150,160)
-
-# ------------------------------------------------------------------------------
-# MODE3（便利表示）関係
-
-MODE_USEFUL_MOIST_POS		= (5, 30)
-MODE_USEFUL_MOIST_UNIT_POS	= ( 70, 100)
-
-MODE_USEFUL_HUM_POS			= (5,  155)
-MODE_USEFUL_HUM_UNIT_POS	= (70, 222)
-
-MODE_USEFUL_TEMP_POS		= (120, 30)
-MODE_USEFUL_TEMP_UNIT_POS	= (210, 100)
-
-MODE_USEFUL_PRESS_POS		= (85 , 157)
-MODE_USEFUL_PRESS_UNIT_POS	= (200, 217)
 
 # ------------------------------------------------------------------------------
 # MODE4（デバイス表示）関係

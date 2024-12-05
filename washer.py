@@ -114,19 +114,20 @@ def _capture_washer()->np.ndarray:
 	return img
 
 # ------------------------------------------------------------------------------
-def _pattern_matching2(image, open_template, close_template)->Tuple[float, int]:
+def _pattern_matching(image, open_template, close_template)->Tuple[float, int]:
 	"""
 	現在の食洗器の写真と、テンプレートを照合して一致度を計算する
 
 	・現在の食洗器の中に、与えられたテンプレートが含まれている相関係数を計算
 
 	引数：
-		image	: 現在の食洗器の写真
-		template: 予約ランプあたりのパターン写真
+		image			: 現在の食洗器の写真（カメラ撮影したもの）
+		open_template	: 開いている食洗器のテンプレ
+		close_template	: 閉まっている食洗器のテンプレ
 
 	戻り値：（x,y）
 		x : 相関係数
-		y : 拡大率
+		y : ドア開閉状態
 	"""
 	g.log("WASHER","パターンマッチング")
 
@@ -152,7 +153,7 @@ def _pattern_matching2(image, open_template, close_template)->Tuple[float, int]:
 
 # ------------------------------------------------------------------------------
 
-def _pattern_matching(image, template, max_zoom)->Tuple[float, float]:
+def _pattern_matching_zoom(image, template, max_zoom)->Tuple[float, float]:
 	"""
 	現在の食洗器の写真と、テンプレートを照合して一致度を計算する
 
@@ -207,7 +208,7 @@ def _monitor_washer_now()->None:
 
 	戻り値：(int x, int y)
 	　x : ドアの状態（open/close）
-	　y : タイマの状態（off/2h/4h/now）
+	　y : タイマの状態（off/2h/4h）
 	"""
 	# TODO:ズームで全部調べるのではなく、開閉１枚ずつのチェックにすべき
 
@@ -221,26 +222,34 @@ def _monitor_washer_now()->None:
 
 
 	# タイマー０
-	corr, zoom = _pattern_matching( img, TEMP_LIGHT_CLOSE_OFF, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<109 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_OFF, "CORR":corr} )
+	c1 = _pattern_matching(img, TEMP_LIGHT_CLOSE_OFF)
+	c2 = _pattern_matching(img, TEMP_LIGHT_OPEN_OFF )
+	results.append( {"DOOR":WASHER_DOOR_CLOSE, "TIMER":WASHER_TIMER_OFF, "CORR":c1} )
+	results.append( {"DOOR":WASHER_DOOR_OPEN,  "TIMER":WASHER_TIMER_OFF, "CORR":c2} )
+	
 
 	# タイマー2H
-	corr, zoom = _pattern_matching( img, TEMP_LIGHT_CLOSE_2H, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<109 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_2H, "CORR":corr} )
+	c1 = _pattern_matching(img, TEMP_LIGHT_CLOSE_2H)
+	c2 = _pattern_matching(img, TEMP_LIGHT_OPEN_2H )
+	results.append( {"DOOR":WASHER_DOOR_CLOSE, "TIMER":WASHER_TIMER_2H, "CORR":c1} )
+	results.append( {"DOOR":WASHER_DOOR_OPEN,  "TIMER":WASHER_TIMER_2H, "CORR":c2} )
 
 	# タイマー4H
-	corr, zoom = _pattern_matching( img, TEMP_LIGHT_CLOSE_4H, 130)
-	results.append( {"DOOR":WASHER_DOOR_CLOSE if zoom<109 else WASHER_DOOR_OPEN, "TIMER":WASHER_TIMER_4H, "CORR":corr} )
+	c1 = _pattern_matching(img, TEMP_LIGHT_CLOSE_4H)
+	c2 = _pattern_matching(img, TEMP_LIGHT_OPEN_4H )
+	results.append( {"DOOR":WASHER_DOOR_CLOSE, "TIMER":WASHER_TIMER_4H, "CORR":c1} )
+	results.append( {"DOOR":WASHER_DOOR_OPEN,  "TIMER":WASHER_TIMER_4H, "CORR":c2} )
 
 	#昇順ソート
 	results = sorted(results, key=lambda x:x["CORR"], reverse=True)
 
+	#ランキングをLOG出力
 	for x in results:
-		door = x["DOOR"]
+		door  = x["DOOR"]
 		timer = x["TIMER"]
-		corr = x["CORR"]
+		corr  = x["CORR"]
 
-		g.log( "WASHER", f"DOOR:{_door(door)} / TIMER:{_timer(timer)} / {corr:.3f} / {zoom}" )
+		g.log( "WASHER", f"DOOR:{_door(door)} / TIMER:{_timer(timer)} / CORR:{corr:.3f}" )
 
 	# 一致度が最低ラインを下回っていたら、素直に「分からない」と回答
 	if results[0]["CORR"] < TEMP_MATCHING_THRESHOULD:
@@ -256,18 +265,18 @@ def _monitor_washer_now()->None:
 		return door, timer
 
 # ------------------------------------------------------------------------------
-def _door(door)->str:
+def _door(door:int)->str:
 	if   door==WASHER_DOOR_CLOSE: return "CLOSE"
 	elif door==WASHER_DOOR_OPEN : return "OPEN"
 	else: return "--"
 
-def _timer(timer)->str:
+def _timer(timer:int)->str:
 	if   timer==WASHER_TIMER_OFF: return "OFF"
 	elif timer==WASHER_TIMER_2H : return "2H"
 	elif timer==WASHER_TIMER_4H : return "4H"
 	else: return "--"
 
-def _dishes(dishes)->str:
+def _dishes(dishes:int)->str:
 	if   dishes==WASHER_DISHES_EMPTY : return "EMPTY"
 	elif dishes==WASHER_DISHES_DIRTY : return "DIRTY"
 	elif dishes==WASHER_DISHES_WASHED: return "WASHED"
@@ -300,14 +309,13 @@ def monitor_washer()->None:
 
 	# デバッグ変数が定義されていたら
 	if debug_door or debug_timer:
+		g.log( "WASHER", "DEBUGで食洗器チェック")
 		door = WASHER_DOOR_CLOSE
 		timer = WASHER_TIMER_OFF
-
-		g.log( "WASHER", "DEBUGで食洗器チェック")
-		if debug_door=="open"	: door = WASHER_DOOR_OPEN
-		if debug_door=="close"	: door = WASHER_DOOR_CLOSE
-		if debug_timer=="off"	: timer = WASHER_TIMER_OFF
-		if debug_timer=="2H"	: timer=WASHER_TIMER_2H
+		if debug_door=="open"	: door = WASHER_DOOR_OPEN	;debug_door=""
+		if debug_door=="close"	: door = WASHER_DOOR_CLOSE	;debug_door="" 
+		if debug_timer=="off"	: timer = WASHER_TIMER_OFF	;debug_timer=""
+		if debug_timer=="2H"	: timer=WASHER_TIMER_2H		;debug_timer=""
 	else:
 		# １ショット撮影してドア・タイマの状態をチェック
 		door, timer = _monitor_washer_now()
@@ -316,12 +324,13 @@ def monitor_washer()->None:
 		if door==WASHER_STATUS_UNKNOWN: return
 
 
-	# 最新の状態を反映する
+	# 最新の状態をstatic変数に反映する
 	washer_door = door
 	washer_timer = timer
 
 	# ドア・タイマによるdishesの状態設定・アクション
 
+	# ドア状態の変化検出
 	if old_washer_door != door:
 		# 1.ドアが開いている（食器を入れている or 出している）
 		if door==WASHER_DOOR_OPEN:
@@ -334,19 +343,19 @@ def monitor_washer()->None:
 
 			else:
 				g.log("WASHER", "ドアが開きました")
-				g.talk("do'aga hirakimasita")
+				g.talk("doa'ga hirakimasita")
 
 				# 食器ステータスを「汚れ」に
 				washer_dishes = WASHER_DISHES_DIRTY
-				# 30分後には念のため確認
+				# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
 				schedule.every(30).minutes.do(check_washer).tag("check_washer")
-
 
 		# 2.ドアが閉まっている（食器には直接の変化なし）
 		if door==WASHER_DOOR_CLOSE:
 			g.log("WASHER", "ドアがしまりました")
 			g.talk("do'aga simattayo")
 
+	# タイマ状態の変化検出
 	if old_washer_timer!=timer:
 		# 3.タイマーがオフ（直前までタイマONなら洗浄開始のハズ！！）
 		if timer==WASHER_TIMER_OFF:
@@ -362,13 +371,16 @@ def monitor_washer()->None:
 	return
 
 # ------------------------------------------------------------------------------
-_call_from_child = False
-
 def check_washer( call_from_child:bool=False )->bool:
 	"""
-	食洗器の警報判断を行う
-	
-	戻り値
+	食洗器の警報判断を行う（CDS明→暗、子機呼び出しタイミング）
+
+	引数：
+	　call_from_child(bool)
+	　　： 子機から呼ばれてチェックする場合はTrue
+	　　　　その場合は、無駄に音声発生しない（だけかな？）
+
+	戻り値：
 	・True  : 正常（食器なし・タイマセット済み）
 	・False : 異常（食器あり・タイマセットなし） 
 	"""
@@ -376,16 +388,16 @@ def check_washer( call_from_child:bool=False )->bool:
 	global _call_from_child
 
 	g.log("WASHER", f"現状認識：{washer_status()}")
-	
-	schedule.clear("check_washer")
-	_call_from_child = call_from_child
+	schedule.clear("check_washer") # 夜の照明を消す前の30分チェックのキャンセル
 
-	# なし or 洗浄済みならOK
+	# なし→OK
 	if washer_dishes==WASHER_DISHES_EMPTY:
 		if call_from_child==False:
 			g.log("WASHER","食器は入っていません")
 			g.talk( "shokki'wa ha'itte/imase'n.")
 		return True
+	
+	# 洗浄済み→OK
 	if washer_dishes==WASHER_DISHES_WASHED:
 		if call_from_child==False:
 			g.log("WASHER", "洗浄済みです")
@@ -394,28 +406,32 @@ def check_washer( call_from_child:bool=False )->bool:
 
 	# 食器が入っているときは、タイマの設定によりOK/NG
 	elif washer_dishes==WASHER_DISHES_DIRTY:
+
+		# タイマがセットされていない→NG
 		if washer_timer==WASHER_TIMER_OFF:
 			if call_from_child==False:
 				g.log("WASHER","食器があるのにタイマーセットされていません！")
 				g.talk( "ta'ima-ga se'ttosareteimasen.")
-			else:
-				pass
-			start_alert_dirty_dishes() # 最重要機能！
+
+			if not call_from_child: start_alert_dirty_dishes() # 最重要機能！
 			return False
+
+		# タイマがセットされている→OK
 		else:
 			if call_from_child==False:
 				g.log("WASHER","食器が入っていて、タイマーはセットされています！")
 				g.talk( "shokuse'nkiwa daijo'ubu desu.")
 				g.talk( "a'nsinsite oya'suminasai.")
-			start_alert_timer_ok()
+
+			if not call_from_child: start_alert_timer_ok()	# いらない気もするが・・・ TODO:
 			return True
 
 # ------------------------------------------------------------------------------
 def start_alert_dirty_dishes()->None:
 	"""
-	汚れた食器があるのにタイマー未セットの警告ダイアログ
+	汚れた食器＆タイマー未セットの警告ダイアログ
 	"""
-	g.log("DIRTY","警報開始")
+	g.log("DIRTY","汚れ警報開始")
 	alert_dirty_dishes()
 	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds\
 			.do(alert_dirty_dishes).tag("alert_dirty_dishes")
@@ -429,14 +445,14 @@ def alert_dirty_dishes()->None:
 	"""
 	g.set_dialog( PIC_DIRTY, stop_alert_dirty_dishes )
 	g.log("ALERT", "タイマーセットされておらんよ")
-	if not _call_from_child : g.talk("abunaizo-")
+	g.talk("abunaizo-")
 
 def stop_alert_dirty_dishes()->None:
 	"""
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("DIRTY","警報終了～")
-	if _call_from_child : g.talk("ke'ihou tei'si")
+	g.talk("ke'ihou tei'si")
 	schedule.clear("alert_dirty_dishes")
 	schedule.clear("stop_alert_dirty_dishes")
 	g.update_display_immediately()
@@ -444,9 +460,9 @@ def stop_alert_dirty_dishes()->None:
 # ------------------------------------------------------------------------------
 def start_alert_timer_ok()->None:
 	"""
-	タイマーセット済みOK
+	タイマーがセットされていて問題ない場合のアラート（いる？）
 	"""
-	g.log("TIMER","警報開始")
+	g.log("TIMER","OK警報開始")
 	alert_timer_ok()
 	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds\
 			.do(alert_timer_ok).tag("alert_timer_ok")
@@ -466,7 +482,7 @@ def stop_alert_timer_ok()->None:
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("TIMER","警報終了～")
-	if _call_from_child : g.talk("ke'ihou tei'si")
+	g.talk("ke'ihou tei'si")
 	schedule.clear("alert_timer_ok")
 	schedule.clear("stop_alert_timer_ok")
 	g.update_display_immediately()
@@ -474,7 +490,7 @@ def stop_alert_timer_ok()->None:
 # ------------------------------------------------------------------------------
 def start_alert_washed()->None:
 	"""
-	ちゃんと洗浄された報告
+	ちゃんと洗浄された報告（朝に出番のはず）
 	"""
 	g.log("TIMER","警報開始")
 	alert_washed()
@@ -486,18 +502,18 @@ def start_alert_washed()->None:
 
 def alert_washed()->None:
 	"""
-	タイマーセット済みハンドラ～
+	洗浄済み警報ハンドラ～
 	"""
 	g.set_dialog( PIC_DIRTY_OK, stop_alert_washed )
 	g.log("TIMER", "食器は洗浄済み！")
-	if _call_from_child!=True : g.talk("sho'kkiwa ara'tte/ari'masuyo-")
+	g.talk("sho'kkiwa ara'tte/ari'masuyo-")
 
 def stop_alert_washed()->None:
 	"""
 	ボタンでダイアログ消したときの扱い
 	"""
-	g.log("TIMER","警報終了～")
-	if _call_from_child : g.talk("ke'ihou tei'si")
+	g.log("TIMER","終了～")
+	g.talk("ke'ihou tei'si")
 	schedule.clear("alert_washed")
 	schedule.clear("stop_alert_washed")
 	g.update_display_immediately()
@@ -557,7 +573,7 @@ def preview_washser()->None:
 	picam.stop()
 	picam.close()
 
-	g.talk("pi'")
+	g.talk("ka'mera/cho'usei shuu'ryou")
 	g.log("WASER","プレビュー終了")
 
 	
