@@ -77,7 +77,11 @@ def _receive_message_thread()->None:
 
 			elif data==COMM_WASHER_REQUEST:
 				g.comm_washer_request = True
+			elif data=="status":
+				g.log("COMM", f"現状認識：{washer.washer_status()}")
+				send_message( "OK" if washer.check_washer(call_from_child=True) else "NG" )
 
+			# 以下はデバッグ用
 			elif data=="open":
 				washer.debug_door = "open"
 				g.log("COMM", "「ドアOPEN」を受信")
@@ -94,12 +98,6 @@ def _receive_message_thread()->None:
 				washer.check_washer(call_from_child=False)
 			elif data=="monitor":
 				washer.monitor_washer()
-			elif data=="status":
-				door = washer.washer_door
-				timer = washer.washer_timer
-				dishes = washer.washer_dishes
-				g.log("COMM",f"ドア：{door}/タイマ：{timer}/皿：{dishes}")
-
 			else:
 				g.log( "COMM RECV", f"知らないメッセージ:{data}")
 
@@ -191,9 +189,3 @@ def init_comm()->None:
 
 	threading.Thread(target=_make_connection_thread, args=()).start()
 	time.sleep(1)
-
-	#while True:
-	#	msg = input("クライアントへのメッセージ：")
-	#	if msg:
-	#		send_message(msg)
-
