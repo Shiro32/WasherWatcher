@@ -547,25 +547,25 @@ def preview_washser()->None:
 		img = picam.capture_array()
 		img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
 
-		## トリミング
-		#w = img.shape[1]
-		#h = img.shape[0]
-		#img = img[
-		#	int(h*WASHER_CAP_TRIM_TOP) :int(h*WASHER_CAP_TRIM_BOTTOM),
-		#	int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
+		# トリミング
+		w = img.shape[1]
+		h = img.shape[0]
+		img = img[
+			int(h*WASHER_CAP_TRIM_TOP) :int(h*WASHER_CAP_TRIM_BOTTOM),
+			int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
 		
-		img = Image.fromarray(img)
-		g.image_main_buf.paste( img )
+		#img = Image.fromarray(img)
+		#g.image_main_buf.paste( img )
 
-		draw = ImageDraw.Draw(g.image_main_buf)
-		draw.rectangle((
-			int(PREVIEW_WIDTH *WASHER_CAP_TRIM_LEFT),
-			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_TOP),
-			int(PREVIEW_WIDTH *WASHER_CAP_TRIM_RIGHT),
-			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_BOTTOM)),
-			outline=(255,255,255))
+		#draw = ImageDraw.Draw(g.image_main_buf)
+		#draw.rectangle((
+		#	int(PREVIEW_WIDTH *WASHER_CAP_TRIM_LEFT),
+		#	int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_TOP),
+		#	int(PREVIEW_WIDTH *WASHER_CAP_TRIM_RIGHT),
+		#	int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_BOTTOM)),
+		#	outline=(255,255,255))
 
-		draw.text( (40, 210), "左側のボタンで終了", font=normalFont, fill="black" )
+#		draw.text( (40, 210), "左側のボタンで終了", font=normalFont, fill="black" )
 
 		g.epd_display()
 		if g.front_button_status()==PUSH_1CLICK: break
