@@ -27,17 +27,17 @@ import globals as g # グローバル変数・関数
 # テンプレート写真
 
 # 明るい・ドア閉
-TEMP_LIGHT_CLOSE_OFF= "./pattern/light_close_off.png"	# 予約なし
-TEMP_LIGHT_CLOSE_2H	= "./pattern/light_close_2h.png"	# ２ｈ予約
-TEMP_LIGHT_CLOSE_4H	= "./pattern/light_close_4h.png"	# ４ｈ予約
+TEMP_LIGHT_CLOSE_OFF= "./pattern/icon_light_close_off.png"	# 予約なし
+TEMP_LIGHT_CLOSE_2H	= "./pattern/icon_light_close_2h.png"	# ２ｈ予約
+TEMP_LIGHT_CLOSE_4H	= "./pattern/icon_light_close_4h.png"	# ４ｈ予約
 
 # 明るい・ドア開
-TEMP_LIGHT_OPEN_OFF	= "./pattern/light_open_off.png"	# 予約なし
-TEMP_LIGHT_OPEN_2H	= "./pattern/light_open_2h.png"		# ２ｈ予約
-TEMP_LIGHT_OPEN_4H	= "./pattern/light_open_4h.png"		# ４ｈ予約
+TEMP_LIGHT_OPEN_OFF	= "./pattern/icon_light_open_off.png"	# 予約なし
+TEMP_LIGHT_OPEN_2H	= "./pattern/icon_light_open_2h.png"	# ２ｈ予約
+TEMP_LIGHT_OPEN_4H	= "./pattern/icon_light_open_4h.png"	# ４ｈ予約
 
 # テンプレートとマッチングの最低閾値
-TEMP_MATCHING_THRESHOULD = 0.85
+TEMP_MATCHING_THRESHOULD = 0.8
 
 # 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 2592
@@ -50,7 +50,7 @@ PREVIEW_HEIGHT	= int(PREVIEW_WIDTH/PREVIEW_ASPECT)
 
 # 撮影写真のトリミング領域（実際のパターンマッチングに使うのは狭い領域なので）
 WASHER_CAP_TRIM_TOP		= 1/4*1
-WASHER_CAP_TRIM_BOTTOM	= 1/4*3
+WASHER_CAP_TRIM_BOTTOM	= 1/4*4
 
 WASHER_CAP_TRIM_LEFT	= 1/4*1
 WASHER_CAP_TRIM_RIGHT	= 1/4*3
@@ -114,7 +114,7 @@ def _capture_washer()->np.ndarray:
 	return img
 
 # ------------------------------------------------------------------------------
-def _pattern_matching(image, open_template, close_template)->Tuple[float, int]:
+def _pattern_matching(image, temp)->Tuple[float, int]:
 	"""
 	現在の食洗器の写真と、テンプレートを照合して一致度を計算する
 
@@ -131,24 +131,17 @@ def _pattern_matching(image, open_template, close_template)->Tuple[float, int]:
 	"""
 	g.log("WASHER","パターンマッチング")
 
-	img    = cv2.cvtColor( image, cv2.COLOR_RGB2GRAY )
-	op_tmp = cv2.cvtColor( cv2.imread(open_template) , cv2.COLOR_RGB2GRAY )
-	cl_tmp = cv2.cvtColor( cv2.imread(close_template), cv2.COLOR_RGB2GRAY )
-
-	corr = 0
+	img = cv2.cvtColor( image, cv2.COLOR_RGB2GRAY )
+	tmp = cv2.cvtColor( cv2.imread(temp) , cv2.COLOR_RGB2GRAY )
+	#img = image
+	#tmp = cv2.imread(temp)
 
 	# open側のパターンマッチング
-	op_result = cv2.matchTemplate(img, op_tmp, cv2.TM_CCOEFF_NORMED)
-	_, op_corr, _, _ = cv2.minMaxLoc(op_result)
+	#result = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
+	result = cv2.matchTemplate(img, tmp, cv2.TM_CCOEFF_NORMED)
+	_, corr, _, _ = cv2.minMaxLoc(result)
 
-	# close側のパターンマッチング
-	cl_result = cv2.matchTemplate(img, cl_tmp, cv2.TM_CCOEFF_NORMED)
-	_, cl_corr, _, _ = cv2.minMaxLoc(cl_result)
-
-	if op_corr > cl_corr:
-		return op_corr, WASHER_DOOR_OPEN
-	else:
-		return cl_corr, WASHER_DOOR_CLOSE
+	return corr
 
 
 # ------------------------------------------------------------------------------
@@ -223,10 +216,9 @@ def _monitor_washer_now()->None:
 
 	# タイマー０
 	c1 = _pattern_matching(img, TEMP_LIGHT_CLOSE_OFF)
-	c2 = _pattern_matching(img, TEMP_LIGHT_OPEN_OFF )
+	c2 = _pattern_matching(img, TEMP_LIGHT_OPEN_OFF)
 	results.append( {"DOOR":WASHER_DOOR_CLOSE, "TIMER":WASHER_TIMER_OFF, "CORR":c1} )
 	results.append( {"DOOR":WASHER_DOOR_OPEN,  "TIMER":WASHER_TIMER_OFF, "CORR":c2} )
-	
 
 	# タイマー2H
 	c1 = _pattern_matching(img, TEMP_LIGHT_CLOSE_2H)
@@ -301,6 +293,7 @@ def monitor_washer()->None:
 	・タイマーオン→汚れ食器なし
 	"""
 	global washer_dishes, washer_door, washer_timer
+	global debug_door, debug_timer
 
 	# 直前値を保持
 	old_washer_dishes	= washer_dishes
@@ -554,8 +547,9 @@ def preview_washser()->None:
 			int(h*WASHER_CAP_TRIM_TOP) :int(h*WASHER_CAP_TRIM_BOTTOM),
 			int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
 		
-		#img = Image.fromarray(img)
-		#g.image_main_buf.paste( img )
+		img = cv2.resize(img, None, fx=4, fy=4,interpolation=cv2.INTER_CUBIC)
+		img = Image.fromarray(img)
+		g.image_main_buf.paste( img )
 
 		#draw = ImageDraw.Draw(g.image_main_buf)
 		#draw.rectangle((

@@ -319,7 +319,7 @@ def init_at_boot()->None:
 	g.talk( "hoge" )
 
 	#プレビュー
-	washer.preview_washser()
+#	washer.preview_washser()
 
 # ------------------------------- main -------------------------------
 if __name__ == "__main__":
@@ -393,19 +393,19 @@ if __name__ == "__main__":
 				#sys.exit()
 
 			# スライドスイッチをポーリングで検出してシャットダウン
-			if pi.read(SLIDE_SW_PIN)==pigpio.HIGH:
-				g.talk( voice_shutdown1, True)
-				g.clear_image()
-				g.image_buf.paste( ICON_BYE_MAC, (0,0) )
-				g.epd_display( False )
+			#if pi.read(SLIDE_SW_PIN)==pigpio.HIGH:
+			#	g.talk( voice_shutdown1, True)
+			#	g.clear_image()
+			#	g.image_buf.paste( ICON_BYE_MAC, (0,0) )
+			#	g.epd_display( False )
 
-				g.log( "SHUTDOWN" )
-				g.talk( voice_shutdown2, True )
-				g.talk( voice_shutdown3, False )
+			#	g.log( "SHUTDOWN" )
+			#	g.talk( voice_shutdown2, True )
+			#	g.talk( voice_shutdown3, False )
 
-				pi.stop()
-				os.system( "sudo shutdown now" )
-				sys.exit()
+			#	pi.stop()
+			#	os.system( "sudo shutdown now" )
+			#	sys.exit()
 
 
 	except KeyboardInterrupt:
