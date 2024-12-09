@@ -310,6 +310,9 @@ def init_at_boot()->None:
 	# 通信回線
 	comm.init_comm()
 
+	# カメラ関係
+	washer.init_washer()
+
 	# 人感センサー電源（普通のGPIOからVSSを取っているので、HIGHにするのを忘れずに！）
 	pi.write( PIR_VCC_PIN, pigpio.HIGH )
 

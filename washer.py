@@ -36,8 +36,13 @@ TEMP_LIGHT_OPEN_OFF	= "./pattern/icon_light_open_off.png"	# 予約なし
 TEMP_LIGHT_OPEN_2H	= "./pattern/icon_light_open_2h.png"	# ２ｈ予約
 TEMP_LIGHT_OPEN_4H	= "./pattern/icon_light_open_4h.png"	# ４ｈ予約
 
+# CASTELLIマークでOPEN/CLOSEを判定する
+TEMP_CASTELLI_OPEN  = "./pattern/castelli_open.png"
+TEMP_CASTELLI_CLOSE = "./pattern/castelli_close.png"
+
 # テンプレートとマッチングの最低閾値
-TEMP_MATCHING_THRESHOULD = 0.8
+TEMP_MATCHING_THRESHOLD = 0.8
+TEMP_DOOR_THRESHOLD = 50
 
 # 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 2592
@@ -73,6 +78,17 @@ washer_timer	= WASHER_TIMER_OFF
 #def timer_label()->str:
 
 # ------------------------------------------------------------------------------
+def init_washer():
+	global temp_close, temp_open
+
+	temp_close = cv2.imread( TEMP_CASTELLI_CLOSE )
+	temp_close = cv2.cvtColor( temp_close, cv2.COLOR_RGB2GRAY )
+
+	temp_open  = cv2.imread( TEMP_CASTELLI_OPEN )
+	temp_open  = cv2.cvtColor( temp_open, cv2.COLOR_RGB2GRAY )
+
+
+# ------------------------------------------------------------------------------
 def _capture_washer()->np.ndarray:
 	"""
 	カメラモジュールで食洗器を撮影する
@@ -81,6 +97,8 @@ def _capture_washer()->np.ndarray:
 	・フルサイズで撮影する
 	・左右の真ん中、上下の下半分にトリミングする
 	"""
+
+	### TODO: もしかするとカメラ初期化は１回だけにした方がよいかも！！！
 
 	g.log( "WASHER","写真撮影")
 
@@ -143,58 +161,75 @@ def _pattern_matching(image, temp)->Tuple[float, int]:
 
 	return corr
 
-
 # ------------------------------------------------------------------------------
-
-def _pattern_matching_zoom(image, template, max_zoom)->Tuple[float, float]:
+def _monitor_washer_now()->Tuple[int, int]:
 	"""
-	現在の食洗器の写真と、テンプレートを照合して一致度を計算する
+	食洗器を撮影して、現在の状況を確認する
+	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
 
-	・現在の食洗器の中に、与えられたテンプレートが含まれている相関係数を計算
-	・max_zoomが100より大きければ、その比率まで拡大してみて計算する
-
-	引数：
-		image	: 現在の食洗器の写真
-		template: 予約ランプあたりのパターン写真
-		max_zoom: 最大の拡大率
-
-	戻り値：（x,y）
-		x : 相関係数
-		y : 拡大率
+	戻り値：(int x, int y)
+	　x : ドアの状態（open/close）
+	　y : タイマの状態（off/2h/4h）
 	"""
-	g.log("WASHER","パターンマッチング")
+	g.log( "WASHER","食洗器チェック開始")
 
-	img = cv2.cvtColor( image, cv2.COLOR_RGB2GRAY )
-	tpl = cv2.cvtColor( cv2.imread(template), cv2.COLOR_RGB2GRAY )
+	# 写真を撮影
+	img   = _capture_washer()	# カラー
+	img_g = cv2.cvtColor( img, cv2.COLOR_RGB2GRAY ) # グレー
 
-	# 拡大を許さないパターン（TODO:もうやらないので、消していいカモ）
-	if max_zoom==100:
-		result = cv2.matchTemplate(img, tpl, cv2.TM_CCOEFF_NORMED)
-		_, corr, _, _ = cv2.minMaxLoc(result)
+	# OPEN/CLOSEの判定
+	# CLOSE,OPENのパターンマッチングをやる（2回）
+	result = cv2.matchTemplate(img_g, temp_close, cv2.TM_CCOEFF_NORMED)
+	_, corr_cl, _, maxLoc_cl = cv2.minMaxLoc(result)
+	result = cv2.matchTemplate(img_g, temp_open, cv2.TM_CCOEFF_NORMED)
+	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result)
 
-		return corr, 100
+	g.log( "WASHER", f"CLOSE:{corr_cl} / OPEN:{corr_op}" )
+	
+	# 開閉どちらかのマークが読み取れなければ終了	
+	if corr_cl<TEMP_MATCHING_THRESHOLD:
+		g.log( "WASHER", "判定できず")
+		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
-	# 拡大を許すパターン（ドアを開けている状態を想定）
+	# ドアの開閉に合わせて、タイマーLEDの領域を設定
+	if corr_cl>=corr_op:
+		# CLOSE状態認識
+		door = WASHER_DOOR_CLOSE
+		# 2H
+		timer2h_TL = maxLoc_cl[0]+temp_close.shape[1]	, maxLoc_cl[1]+20
+		timer2h_BR = timer2h_TL[0]+12				, timer2h_TL[1]+12
+		# 4H
+		timer4h_TL = maxLoc_cl[0]+temp_close.shape[1]	, maxLoc_cl[1]+8
+		timer4h_BR = timer4h_TL[0]+12				, timer4h_TL[1]+12
+
 	else:
-		corr = 0
-		zoom = 100
+		# OPEN状態認識
+		door = WASHER_DOOR_OPEN
+		# 2H
+		timer2h_TL = maxLoc_op[0]+temp_open.shape[1]	, maxLoc_op[1]+27
+		timer2h_BR = timer2h_TL[0]+13				, timer2h_TL[1]+12
+		# 4H
+		timer4h_TL = maxLoc_op[0]+temp_open.shape[1]	, maxLoc_op[1]+10
+		timer4h_BR = timer4h_TL[0]+13				, timer4h_TL[1]+13
 
-		for i in range(100, max_zoom+1 , 5):
+	# 2Hと4HタイマーLEDの領域、赤の重さを算出
+	box2 = img[ timer2h_TL[1]:timer2h_BR[1], timer2h_TL[0]:timer2h_BR[0] ]
+	box4 = img[ timer4h_TL[1]:timer4h_BR[1], timer4h_TL[0]:timer4h_BR[0] ]
+	c2 = box2.T[2].flatten().mean()
+	c4 = box4.T[2].flatten().mean()
 
-			# テンプレートの拡大
-			tpl2 = cv2.resize(tpl, None, fx=i/100, fy=i/100,interpolation=cv2.INTER_CUBIC)
+	g.log("WASHER", f"C2:{c2} / C4:{c4}")
 
-			result = cv2.matchTemplate(img, tpl2, cv2.TM_CCOEFF_NORMED)
-			_, v, _, _ = cv2.minMaxLoc(result)
+	if   c2>TEMP_DOOR_THRESHOLD	: timer = WASHER_TIMER_2H
+	elif c4>TEMP_DOOR_THRESHOLD : timer = WASHER_TIMER_4H
+	else						: timer = WASHER_TIMER_OFF
 
-			if v>corr:
-				corr = v
-				zoom = i
+	g.log("WASHER", f"一致検出（DOOR:{_door(door)}/TIMER{_timer(timer)}）")
+	return door, timer
 
-		return corr, zoom
 
 # ------------------------------------------------------------------------------
-def _monitor_washer_now()->None:
+def _old_monitor_washer_now()->None:
 	"""
 	食洗器を撮影して、現在の状況を確認する
 	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
@@ -244,7 +279,7 @@ def _monitor_washer_now()->None:
 		g.log( "WASHER", f"DOOR:{_door(door)} / TIMER:{_timer(timer)} / CORR:{corr:.3f}" )
 
 	# 一致度が最低ラインを下回っていたら、素直に「分からない」と回答
-	if results[0]["CORR"] < TEMP_MATCHING_THRESHOULD:
+	if results[0]["CORR"] < TEMP_MATCHING_THRESHOLD:
 		g.log("WASHER","判定できず")
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
