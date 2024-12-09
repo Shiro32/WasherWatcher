@@ -33,6 +33,8 @@ PREVIEW_ASPECT	= CAPTURE_WIDTH/CAPTURE_HEIGHT	# アスペクトレシオ（プ�
 PREVIEW_WIDTH	= MAIN_WIDTH
 PREVIEW_HEIGHT	= int(PREVIEW_WIDTH/PREVIEW_ASPECT)
 
+
+
 def _capture_washer()->np.ndarray:
 	"""
 	カメラモジュールで食洗器を撮影する
@@ -46,9 +48,9 @@ def _capture_washer()->np.ndarray:
 	picam.configure(
 		picam.create_preview_configuration(
 			main={"format": 'XRGB8888', "size": (CAPTURE_WIDTH, CAPTURE_HEIGHT)}))
+	picam.start()
 
 	# 撮影
-	picam.start()
 	img = picam.capture_array()
 	picam.stop()
 	picam.close()
