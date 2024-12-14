@@ -615,7 +615,8 @@ def check_sleep()->None:
 	#				talk( voice_goodnight_rain if is_rain() else voice_goodnight_fine )
 					talk( voice_goodnight2 )
 			elif time_mode == TIME_MODE_DAY:
-				talk( voice_kurai )
+				#talk( voice_kurai )
+				pass
 			else:
 				talk( voice_nero )
 				# トンネルモードを作りたい
