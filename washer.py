@@ -47,7 +47,7 @@ TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close.png"
 
 
 # テンプレートとマッチングの最低閾値
-TEMP_MATCHING_THRESHOLD = 0.5
+TEMP_MATCHING_THRESHOLD = 0.6
 TEMP_DOOR_THRESHOLD = 70
 
 # 食洗器撮影写真サイズ
