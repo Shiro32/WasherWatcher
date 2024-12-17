@@ -47,7 +47,7 @@ TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close.png"
 
 
 # テンプレートとマッチングの最低閾値
-TEMP_MATCHING_THRESHOLD = 0.7	# OPEN/CLOSEどちらかがこれを下回ると判定不能扱い
+TEMP_MATCHING_THRESHOLD = 0.7	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 TEMP_TIMER_LED_THRESHOLD = 70
 
 # 食洗器撮影写真サイズ
@@ -83,11 +83,21 @@ washer_timer	= WASHER_TIMER_OFF
 
 #def timer_label()->str:
 
-picam = Picamera2()
+picam = 1
 
 # ------------------------------------------------------------------------------
-def init_washer():
+def init_camera():
 	global picam
+
+	picam = Picamera2()
+
+	picam.configure(
+		picam.create_preview_configuration(
+			main={"format": 'XRGB8888', "size": (CAPTURE_WIDTH, CAPTURE_HEIGHT)}))
+	picam.start()
+
+
+def init_washer():
 	global temp_dark_close, temp_dark_open
 	global temp_light_close, temp_light_open
 
@@ -103,10 +113,7 @@ def init_washer():
 	temp_dark_open   = cv2.imread( TEMP_CASTELLI_DARK_OPEN )
 	temp_dark_open   = cv2.cvtColor( temp_dark_open, cv2.COLOR_RGB2GRAY )
 
-	picam.configure(
-		picam.create_preview_configuration(
-			main={"format": 'XRGB8888', "size": (CAPTURE_WIDTH, CAPTURE_HEIGHT)}))
-	picam.start()
+	init_camera()
 
 # ------------------------------------------------------------------------------
 def _capture_washer()->np.ndarray:
@@ -149,7 +156,7 @@ def _capture_washer()->np.ndarray:
 		int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
 
 	g.log( "WASHER","写真撮影完了")
-	#cv2.imwrite( "shot.png", img )
+	cv2.imwrite( "shot.png", img )
 	return img
 
 # ------------------------------------------------------------------------------
@@ -186,8 +193,11 @@ def _monitor_washer_now()->Tuple[int, int]:
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
 	g.log( "WASHER", f"CLOSE:{corr_cl:.2f} / OPEN:{corr_op:.2f}" )
 	
-	# 開閉どちらかのマークが読み取れなければ終了	
-	if corr_cl<TEMP_MATCHING_THRESHOLD or corr_op<TEMP_MATCHING_THRESHOLD:
+	# 開閉どちらかのマークが読み取れなければ終了→この考え方はやめた
+	#if corr_cl<TEMP_MATCHING_THRESHOLD or corr_op<TEMP_MATCHING_THRESHOLD:
+
+	# 開閉どちらも閾値を下回る場合は、判定をあきらめる
+	if max(corr_cl, corr_op) < TEMP_MATCHING_THRESHOLD:
 		g.log( "WASHER", "判定できず")
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
@@ -556,6 +566,9 @@ def preview_washser()->None:
 	・パターンマッチングで利用する領域を枠
 	・フロントボタンを押すことで終了
 	"""
+
+	global picam
+
 	g.clear_image()
 	g.epd_display
 
@@ -563,6 +576,11 @@ def preview_washser()->None:
 	g.talk("ka'merano mu'kiwo/chouseisimasu.")
 	g.talk("bota'nde/shu'uryou/de'su")
 
+	# いったん、カメラを停める
+	picam.stop()
+	picam.close()
+
+	# プレビュー用に再起動
 	picam = Picamera2()
 	picam.configure(
 		picam.create_preview_configuration(
@@ -575,32 +593,36 @@ def preview_washser()->None:
 		img = picam.capture_array()
 		img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
 
-		# トリミング
-		w = img.shape[1]
-		h = img.shape[0]
-		img = img[
-			int(h*WASHER_CAP_TRIM_TOP) :int(h*WASHER_CAP_TRIM_BOTTOM),
-			int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
+		## トリミング
+		#w = img.shape[1]
+		#h = img.shape[0]
+		#img = img[
+		#	int(h*WASHER_CAP_TRIM_TOP) :int(h*WASHER_CAP_TRIM_BOTTOM),
+		#	int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
 		
-		img = cv2.resize(img, None, fx=4, fy=4,interpolation=cv2.INTER_CUBIC)
+		#img = cv2.resize(img, None, fx=4, fy=4,interpolation=cv2.INTER_CUBIC)
 		img = Image.fromarray(img)
 		g.image_main_buf.paste( img )
 
-		#draw = ImageDraw.Draw(g.image_main_buf)
-		#draw.rectangle((
-		#	int(PREVIEW_WIDTH *WASHER_CAP_TRIM_LEFT),
-		#	int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_TOP),
-		#	int(PREVIEW_WIDTH *WASHER_CAP_TRIM_RIGHT),
-		#	int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_BOTTOM)),
-		#	outline=(255,255,255))
+		draw = ImageDraw.Draw(g.image_main_buf)
+		draw.rectangle((
+			int(PREVIEW_WIDTH *WASHER_CAP_TRIM_LEFT),
+			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_TOP),
+			int(PREVIEW_WIDTH *WASHER_CAP_TRIM_RIGHT),
+			int(PREVIEW_HEIGHT*WASHER_CAP_TRIM_BOTTOM)),
+			outline=(255,255,255))
 
-#		draw.text( (40, 210), "左側のボタンで終了", font=normalFont, fill="black" )
+		draw.text( (40, 210), "左側のボタンで終了", font=normalFont, fill="black" )
 
 		g.epd_display()
 		if g.front_button_status()==PUSH_1CLICK: break
 
+	# カメラを停める
 	picam.stop()
 	picam.close()
+
+	# カメラを再起動
+	init_camera()
 
 	g.talk("ka'mera/cho'usei shuu'ryou")
 	g.log("WASER","プレビュー終了")

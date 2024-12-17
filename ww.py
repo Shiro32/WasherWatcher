@@ -162,6 +162,12 @@ def update_display():
 draw_normal_old_fujikyun = ""
 
 
+MAIN_UPPER_AREA			= (0,	0,		MAIN_WIDTH, 159		)
+MAIN_LOWER_AREA			= (0,	165,	MAIN_WIDTH, MAIN_HEIGHT)
+
+RAIN_ICON = Image.open("icon/mini_rain.png").resize((34,40))
+TEMP_ICON = Image.open("icon/mini_temp.png").resize((34,40))
+
 def draw_normal()->None:
 	"""【モード1】ノーマル表示（水分量に応じて、ふじきゅんを描き分ける）
 	・天気予報
@@ -175,14 +181,12 @@ def draw_normal()->None:
 	g.log("DRAW_NORMAL", "begin")
 
 	# 各領域を作る
-	g.draw_main.rectangle(MAIN_UPPER_AREA, 			fill=(150,150,255))
-	g.draw_main.rectangle(MAIN_LOWER_AREA,			fill=(150,255,150))
+#	g.draw_main.rectangle(MAIN_UPPER_AREA, 			fill=(150,150,255))
+	g.draw_main.rectangle(MAIN_LOWER_AREA,			fill=(221,255,220))
 
-	# 上半分に巨大時計
+	# 下半分に巨大時計
 	dt = datetime.datetime.now()
-	g.draw_main.text((5,20), dt.strftime("%H:%M"), font=clockLargeFont, fill="black")
-
-	# 幅240, 高さ260
+	g.draw_main.text((3,20+160), dt.strftime("%H:%M"), font=clockLargeFont, fill="black")
 
 	# ゴミ出し情報
 #	gomi = Image.open("icon/gomi/gomi_plastic.png" ).resize((100,100))
@@ -194,27 +198,40 @@ def draw_normal()->None:
 	h = datetime.datetime.now().hour
 	if h>=0 and h<  9: x=0 # 朝までは当日天気
 	if h>=9 and h<=24: x=1 # 9時以降は翌日天気
-	day, telop, img, am_rain, pm_rain = weather.get_forecast_weather(x)
+	day, telop, img, day_rain, max_temp, min_temp = weather.get_forecast_weather(x)
 
-	g.draw_main.text( (120 ,100), day, font=normal_font22, fill="black", anchor="ma")
+	# 日付
+	g.draw_main.text( (58 ,5), day, font=normal_font22, fill="black", anchor="ma")
 
+	# 天気マーク＆キャプション
 	tenki = Image.open(img).resize((100,100))
-	g.image_main_buf.paste(tenki, (5,125 ), tenki)
-	g.draw_main.text( (120/2,230), telop, font=normal_font22, fill="black", anchor="ma" )
+	g.image_main_buf.paste(tenki, (5,33), tenki)
+	g.draw_main.text( (55,132), telop, font=normal_font16, fill="black", anchor="ma" )
 
-	# 午前中降水確率
+
+	# 降水確率
+	g.draw_main.rectangle((155, 0, MAIN_WIDTH	, 76), fill=(221,221,255))
+	g.draw_main.rectangle((110, 0, 150			, 76), fill=(238,238,238))
+	g.image_main_buf.paste(RAIN_ICON, (117,24), RAIN_ICON)
+
+	if day_rain==100:
+		g.draw_main.text((235, 18), "100"   , font=digital_font40	, fill="black", anchor="ra")
+	else:
+		g.draw_main.text((235, 12), day_rain, font=digital_font50	, fill="black", anchor="ra")
+	g.draw_main.text((228, 50), "%"		, font=normal_font14	, fill="black")
+
+	## 気温
+	g.draw_main.rectangle((110, 80	, 154		, 159), fill=(238,238,238))
+	g.image_main_buf.paste(TEMP_ICON, (117,103), TEMP_ICON)
+	## 最高気温（赤）最低気温（青）
+	g.draw_main.rectangle((155,  80, MAIN_WIDTH, 118), fill=(255,0,0))
+	g.draw_main.rectangle((155, 121, MAIN_WIDTH, 159), fill=(0,0,255))
+
+	g.draw_main.text((220,  83), max_temp, font=digital_font30, anchor="ra", fill="white")
+	g.draw_main.text((220, 126), min_temp, font=digital_font30, anchor="ra", fill="white")
+
+
 #	g.draw_main.text( (120, 125+15), "昼", font=normal_font20, fill="black" )
-	g.draw_main.text( (225, 125+5), am_rain[:-1], font=digital_font50, anchor="ra", fill="black")
-	g.draw_main.text( (220, 160), "%",  font=normal_font14, fill="black")
-
-	g.draw_main.line( (120, 188, 240, 188), width=2, fill="black")
-
-	# 午後降水確率
-#	g.draw_main.text( (120, 0+200+15), "夜", font=normal_font20, fill="black" )
-	g.draw_main.text( (225, 0+200), pm_rain[:-1], font=digital_font50, anchor="ra", fill="black")
-	#g.draw_main.text( (225, 0+200), "90", font=digital_font50, anchor="ra", fill="black")
-	g.draw_main.text( (220, 35+200-10), "%",  font=normal_font14, fill="black")
-
 
 
 # ------------------------------------------------------------------------------
@@ -322,7 +339,7 @@ def init_at_boot()->None:
 	g.talk( "hoge" )
 
 	#プレビュー
-#	washer.preview_washser()
+	#washer.preview_washser()
 
 # ------------------------------- main -------------------------------
 if __name__ == "__main__":

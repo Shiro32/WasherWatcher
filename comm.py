@@ -76,7 +76,10 @@ def _receive_message_thread()->None:
 				comm_twelite_status = pigpio.HIGH
 
 			elif data==COMM_WASHER_REQUEST:
-				g.comm_washer_request = True
+				comm_washer_request = True	# フラグセットなんだけど、そんなことしないで直接返信に変更
+				send_message( "OK" if washer.check_washer(call_from_child=True) else "NG" )
+
+
 			elif data=="status":
 				g.log("COMM", f"現状認識：{washer.washer_status()}")
 				send_message( "OK" if washer.check_washer(call_from_child=True) else "NG" )

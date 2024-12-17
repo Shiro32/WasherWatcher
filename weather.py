@@ -146,7 +146,7 @@ def kanji2voice(message):
 		line+=1
 
 # ------------------------------------------------------------------------------
-def update_forecast_weather()->None:
+def update_forecast_weather():
 	"""
 	Livedoor天気予報にアクセスして天気情報を更新する
 	・多頻度で呼ばれるとしんどいので、shceduleから数時間おきに呼ばれる
@@ -171,18 +171,24 @@ def update_forecast_weather()->None:
 		tomorrow_dt = datetime.datetime.strptime(ld_weather['forecasts'][1]['date'], '%Y-%m-%d').date()
 		tomorrow_date = tomorrow_dt.strftime('%m月%d日')
 		tomorow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
-		am_rain = ld_weather['forecasts'][1]['chanceOfRain']['T06_12']
-		pm_rain = ld_weather['forecasts'][1]['chanceOfRain']['T12_18']
-		forecast_cache[1]=tomorrow_date, tomorrow_telop, tomorow_image, am_rain, pm_rain
+		am_rain = ld_weather['forecasts'][1]['chanceOfRain']['T06_12'][:-1]
+		pm_rain = ld_weather['forecasts'][1]['chanceOfRain']['T12_18'][:-1]
+		max_temp = ld_weather['forecasts'][1]['temperature']['max']['celsius']
+		min_temp = ld_weather['forecasts'][1]['temperature']['min']['celsius']
+		day_rain = max(am_rain, pm_rain)
+		forecast_cache[1]=tomorrow_date, tomorrow_telop, tomorow_image, day_rain, max_temp, min_temp
 
 		# 今日の天気予報
 		tomorrow_telop = ld_weather['forecasts'][0]['telop']
 		tomorrow_dt = datetime.datetime.strptime(ld_weather['forecasts'][0]['date'], '%Y-%m-%d').date()
 		tomorrow_date = tomorrow_dt.strftime('%m月%d日')
 		tomorow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
-		am_rain = ld_weather['forecasts'][0]['chanceOfRain']['T06_12']
-		pm_rain = ld_weather['forecasts'][0]['chanceOfRain']['T12_18']
-		forecast_cache[0]=tomorrow_date, tomorrow_telop, tomorow_image, am_rain, pm_rain
+		am_rain = ld_weather['forecasts'][0]['chanceOfRain']['T06_12'][:-1]
+		pm_rain = ld_weather['forecasts'][0]['chanceOfRain']['T12_18'][:-1]
+		max_temp = ld_weather['forecasts'][1]['temperature']['max']['celsius']
+		min_temp = ld_weather['forecasts'][1]['temperature']['min']['celsius']
+		day_rain = max(am_rain, pm_rain)
+		forecast_cache[0]=tomorrow_date, tomorrow_telop, tomorow_image, day_rain, max_temp, min_temp
 
 def get_forecast_weather( days: int ):
 	return forecast_cache[days]

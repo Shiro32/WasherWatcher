@@ -41,8 +41,9 @@ COMM_RAIN_HIGH	= "rain_high"	# HIGH = 晴れ（乾いている）
 
 # 食洗器状況やりとり
 COMM_WASHER_REQUEST	= "washer_request"	# 状態取得リクエスト
+
 COMM_WASHER_EMPTY	= "washer_empty"	# 空っぽ
-COMM_WASHER_UNSET	= "washer_unset"	# 未セット（要洗浄）
+COMM_WASHER_UNSET	= "washer_dirty"	# 未セット（要洗浄）
 COMM_WASHER_STANDBY	= "washer_standby"	# タイマーセット済み
 COMM_WASHER_WASHING	= "washer_washing"	# 洗浄中
 COMM_WASHER_DONE	= "washer_done"		# 洗浄完了
@@ -291,10 +292,6 @@ FUJIKYUN_UPDATE_INTERVAL_t = 20
 
 MODE_NORMAL_MOIST_POS = (40, 150)
 
-MAIN_UPPER_AREA			= (0,	0,		MAIN_WIDTH, 100		)
-MAIN_LOWER_AREA			= (0,	101,	MAIN_WIDTH, MAIN_HEIGHT)
-MAIN_LOWER_LEFT_AREA	= (0,	101,	120, MAIN_HEIGHT	)
-MAIN_LOWER_RIGHT_AREA 	= (121,	101,	MAIN_WIDTH, MAIN_HEIGHT)
 
 
 # ------------------------------------------------------------------------------
