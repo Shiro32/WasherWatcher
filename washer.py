@@ -47,8 +47,8 @@ TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close.png"
 
 
 # テンプレートとマッチングの最低閾値
-TEMP_MATCHING_THRESHOLD = 0.6
-TEMP_DOOR_THRESHOLD = 70
+TEMP_MATCHING_THRESHOLD = 0.7	# OPEN/CLOSEどちらかがこれを下回ると判定不能扱い
+TEMP_TIMER_LED_THRESHOLD = 70
 
 # 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 2592
@@ -173,14 +173,14 @@ def _monitor_washer_now()->Tuple[int, int]:
 
 	if pi.read(CDS_PIN)==pigpio.HIGH:
 		# 明るい場合
-		g.log("WASHER", "明るい")
+		g.log("WASHER", "CDS=明るい")
 		result_cl = cv2.matchTemplate(img_g, temp_light_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_light_open, cv2.TM_CCOEFF_NORMED)
 	else:
 		# 暗い場合
 		result_cl = cv2.matchTemplate(img_g, temp_dark_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_dark_open, cv2.TM_CCOEFF_NORMED)
-		g.log( "WASHER", "暗い")
+		g.log( "WASHER", "CDS=暗い")
 
 	_, corr_cl, _, maxLoc_cl = cv2.minMaxLoc(result_cl)
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
@@ -220,9 +220,9 @@ def _monitor_washer_now()->Tuple[int, int]:
 
 	g.log("WASHER", f"C2:{c2:.0f} / C4:{c4:.0f}")
 
-	if   c2>TEMP_DOOR_THRESHOLD	: timer = WASHER_TIMER_2H
-	elif c4>TEMP_DOOR_THRESHOLD : timer = WASHER_TIMER_4H
-	else						: timer = WASHER_TIMER_OFF
+	if   c2>TEMP_TIMER_LED_THRESHOLD : timer = WASHER_TIMER_2H
+	elif c4>TEMP_TIMER_LED_THRESHOLD : timer = WASHER_TIMER_4H
+	else							 : timer = WASHER_TIMER_OFF
 
 	g.log("WASHER", f"一致検出（DOOR={_door(door)}/TIMER={_timer(timer)}）")
 	return door, timer
