@@ -40,13 +40,14 @@ COMM_RAIN_LOW	= "rain_low"	# LOW  = 雨（濡れている）
 COMM_RAIN_HIGH	= "rain_high"	# HIGH = 晴れ（乾いている）
 
 # 食洗器状況やりとり
-COMM_WASHER_REQUEST	= "washer_request"	# 状態取得リクエスト
+COMM_WASHER_REQUEST	= "washer_status"	# 状態取得リクエスト
+COMM_WASHER_ANSWER  = "washer_answer:"	# 状態返信時のヘッダー
 
-COMM_WASHER_EMPTY	= "washer_empty"	# 空っぽ
-COMM_WASHER_UNSET	= "washer_dirty"	# 未セット（要洗浄）
-COMM_WASHER_STANDBY	= "washer_standby"	# タイマーセット済み
-COMM_WASHER_WASHING	= "washer_washing"	# 洗浄中
-COMM_WASHER_DONE	= "washer_done"		# 洗浄完了
+#COMM_WASHER_EMPTY	= "washer_empty"	# 空っぽ
+#COMM_WASHER_UNSET	= "washer_dirty"	# 未セット（要洗浄）
+#COMM_WASHER_STANDBY	= "washer_standby"	# タイマーセット済み
+#COMM_WASHER_WASHING	= "washer_washing"	# 洗浄中
+#COMM_WASHER_DONE	= "washer_done"		# 洗浄完了
 
 # --------------------- 食洗器関係の定数 ---------------------
 
@@ -68,9 +69,9 @@ WASHER_DISHES_EMPTY	= 1
 WASHER_DISHES_DIRTY	= 2
 WASHER_DISHES_WASHED = 3 #洗浄完了（朝に洗浄確認のため）
 
-MONITOR_WASHER_INTERVAL_s = 10
-WASHER_DIRTY_DISHES_INTERVAL_s = 10
-WASHER_DIRTY_DISHES_TIMER_s = 30
+MONITOR_WASHER_INTERVAL_s = 3
+#WASHER_DIRTY_DISHES_INTERVAL_s = 10
+#WASHER_DIRTY_DISHES_TIMER_s = 30
 
 # --------------------- フロントボタン関係のタイマ ---------------------
 # 各種タイマ（マイクロセカンド単位）

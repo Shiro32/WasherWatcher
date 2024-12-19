@@ -18,6 +18,7 @@
 import socket
 import threading
 import time
+import cv2
 
 from cfg import *
 import globals as g
@@ -71,32 +72,49 @@ def _receive_message_thread()->None:
 			# 受信データによってさまざまな処理フラグを立てる
 			if data==COMM_RAIN_LOW:
 				comm_twelite_status = pigpio.LOW
-
 			elif data==COMM_RAIN_HIGH:
 				comm_twelite_status = pigpio.HIGH
 
 			elif data==COMM_WASHER_REQUEST:
 				comm_washer_request = True	# フラグセットなんだけど、そんなことしないで直接返信に変更
-				send_message( "OK" if washer.check_washer(call_from_child=True) else "NG" )
-
+				send_message( COMM_WASHER_ANSWER+washer.washer_status() )
+				#send_message( "OK" if washer.check_washer(call_from_child=True) else "NG" )
 
 			elif data=="status":
 				g.log("COMM", f"現状認識：{washer.washer_status()}")
-				send_message( "OK" if washer.check_washer(call_from_child=True) else "NG" )
+				send_message( COMM_WASHER_ANSWER+washer.washer_status() )
 
 			# 以下はデバッグ用
 			elif data=="open":
-				washer.debug_door = "open"
+				washer.washer_door = WASHER_DOOR_OPEN
 				g.log("COMM", "「ドアOPEN」を受信")
 			elif data=="close":
-				washer.debug_door = "close"
+				washer.washer_door = WASHER_DOOR_CLOSE
 				g.log("COMM", "「ドアCLOSE」を受信")
 			elif data=="off":
-				washer.debug_timer = "off"
+				washer.washer_timer = WASHER_TIMER_OFF
 				g.log("COMM", "「タイマーOFF」を受信")
-			elif data=="2H":
-				washer.debug_timer = "2H"
+			elif data=="2h":
+				washer.washer_timer = WASHER_TIMER_2H
 				g.log( "COMM", "「タイマー2H」を受信")
+			elif data=="4h":
+				washer.washer_timer = WASHER_TIMER_4H
+				g.log( "COMM", "「タイマー4H」を受信")
+			elif data=="empty":
+				washer.washer_dishes = WASHER_DISHES_EMPTY
+				g.log( "COMM", "「EMPTY」を受信")
+			elif data=="dirty":
+				washer.washer_dishes = WASHER_DISHES_DIRTY
+				g.log( "COMM", "「DIRTY」を受信")
+			elif data=="washed":
+				washer.washer_dishes = WASHER_DISHES_WASHED
+				g.log( "COMM", "「WASHED」を受信")
+			elif data=="shot":
+				img = washer._capture_washer(False)
+				cv2.imwrite("shot.png", img)
+			elif data=="fullshot":
+				img = washer._capture_washer(True)
+				cv2.imwrite("shot-full.png", img)
 			elif data=="check":
 				washer.check_washer(call_from_child=False)
 			elif data=="monitor":
@@ -124,16 +142,17 @@ def _send_message_thread( msg:str ):
 	・ACK/NACKは何もせず、一方的に送信
 	"""
 	global comm_status, comm_socket
+	g.log( "COMM SEND", msg )
 
 	try:
 		if not comm_socket: # クライアントの接続が存在しない場合
-			g.log("COMM SEND","親の接続がありません。")
+			g.log("COMM SEND","flowerの接続がありません。")
 		else:
 			comm_socket.sendall(f"{msg}".encode())
 			return
 
 	except BrokenPipeError:
-		g.log("COMM SEND", "サーバが接続を終了しました")
+		g.log("COMM SEND", "flowerが接続を終了しました")
 
 	except Exception as e:
 		g.log("COMM SEND", f"メッセージ送信時にエラーが発生しました: {e}")
@@ -154,7 +173,7 @@ def _make_connection_thread():
 	# 一度起動したら決して終了しないで、ずっと通信回線管理
 	while True:
 		if( comm_status=="close"):
-			g.log("COMM CONNECT", "子機と接続待ち...")
+			g.log("COMM CONNECT", "flowerと接続待ち...")
 			comm_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 			comm_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

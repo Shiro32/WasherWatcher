@@ -169,8 +169,8 @@ def front_button_sound()->None:
 	・callback内部で処理するには重すぎるので、通常処理に戻ってからコールする
 	"""
 	s = ""
-	if _front_button_status==PUSH_1CLICK					: s = "pi'xtu"
-	if _front_button_status==PUSH_LONGPRESS				: s = "pipi'xtu"
+	if _front_button_status==PUSH_1CLICK			: s = "pi'xtu"
+	if _front_button_status==PUSH_LONGPRESS			: s = "pipi'xtu"
 	if _front_button_status==PUSH_SUPER_LONGPRESS	: s = "pipipi'xtu"
 	if _front_button_status==PUSH_ULTRA_LONGPRESS	: s = "pu'supusupusu"
 
