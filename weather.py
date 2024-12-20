@@ -58,8 +58,8 @@ DICT_COMMA = {'、':' ', '。':'. '}
 approaching_rain = False
 
 forecast_cache = [
-	["明日","天気","ファイル",0,0],
-	["明後日","天気","ファイル",0,0]
+	["明日","天気","ファイル",0,0,0],
+	["明後日","天気","ファイル",0,0,0]
 ]
 
 
@@ -185,8 +185,8 @@ def update_forecast_weather():
 		tomorow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
 		am_rain = ld_weather['forecasts'][0]['chanceOfRain']['T06_12'][:-1]
 		pm_rain = ld_weather['forecasts'][0]['chanceOfRain']['T12_18'][:-1]
-		max_temp = ld_weather['forecasts'][1]['temperature']['max']['celsius']
-		min_temp = ld_weather['forecasts'][1]['temperature']['min']['celsius']
+		max_temp = ld_weather['forecasts'][0]['temperature']['max']['celsius']
+		min_temp = ld_weather['forecasts'][0]['temperature']['min']['celsius']
 		day_rain = max(am_rain, pm_rain)
 		forecast_cache[0]=tomorrow_date, tomorrow_telop, tomorow_image, day_rain, max_temp, min_temp
 

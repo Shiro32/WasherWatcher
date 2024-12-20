@@ -42,8 +42,8 @@ TEMP_CASTELLI_LIGHT_OPEN  = "./pattern/castelli_light_open.png"
 TEMP_CASTELLI_LIGHT_CLOSE = "./pattern/castelli_light_close.png"
 
 # 暗い部屋
-TEMP_CASTELLI_DARK_OPEN  = "./pattern/castelli_dark_open.png"
-TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close.png"
+TEMP_CASTELLI_DARK_OPEN  = "./pattern/castelli_dark_open2.png"
+TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close2.png"
 
 
 # テンプレートとマッチングの最低閾値
@@ -188,7 +188,7 @@ def _monitor_washer_now()->Tuple[int, int]:
 	else:
 		# 暗い場合
 		result_cl = cv2.matchTemplate(img_g, temp_dark_close, cv2.TM_CCOEFF_NORMED)
-		result_op = cv2.matchTemplate(img_g, temp_dark_open, cv2.TM_CCOEFF_NORMED)
+		result_op = cv2.matchTemplate(img_g, temp_dark_open	, cv2.TM_CCOEFF_NORMED)
 		g.log( "WASHER", "CDS=暗い")
 
 	_, corr_cl, _, maxLoc_cl = cv2.minMaxLoc(result_cl)

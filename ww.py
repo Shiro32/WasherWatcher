@@ -215,10 +215,10 @@ def draw_normal()->None:
 	g.image_main_buf.paste(RAIN_ICON, (117,24), RAIN_ICON)
 
 	if day_rain==100:
-		g.draw_main.text((235, 18), "100"   , font=digital_font40	, fill="black", anchor="ra")
+		g.draw_main.text((236, 18), "100"   , font=digital_font40	, fill="black", anchor="ra")
 	else:
-		g.draw_main.text((235, 12), day_rain, font=digital_font50	, fill="black", anchor="ra")
-	g.draw_main.text((228, 50), "%"		, font=normal_font14	, fill="black")
+		g.draw_main.text((236, 12), day_rain, font=digital_font50	, fill="black", anchor="ra")
+#	g.draw_main.text((228, 50), "%"		, font=normal_font14	, fill="black")
 
 	## 気温
 	g.draw_main.rectangle((110, 80	, 154		, 159), fill=(238,238,238))
