@@ -2,19 +2,6 @@ import cv2
 import numpy as np
 from picamera2 import Picamera2
 
-TEMP_CASTELLI_OPEN = "./pattern/castelli_open.png"
-TEMP_CASTELLI_CLOSE = "./pattern/castelli_close.png"
-
-# 明るい・ドア閉
-TEMP_LIGHT_CLOSE_OFF= "./pattern/icon_light_close_off.png"	# 予約なし
-TEMP_LIGHT_CLOSE_2H	= "./pattern/icon_light_close_2h.png"	# ２ｈ予約
-TEMP_LIGHT_CLOSE_4H	= "./pattern/icon_light_close_4h.png"	# ４ｈ予約
-
-# 明るい・ドア開
-TEMP_LIGHT_OPEN_OFF	= "./pattern/icon_light_open_off.png"	# 予約なし
-TEMP_LIGHT_OPEN_2H	= "./pattern/icon_light_open_2h.png"	# ２ｈ予約
-TEMP_LIGHT_OPEN_4H	= "./pattern/icon_light_open_4h.png"	# ４ｈ予約
-
 
 # 撮影写真のトリミング領域（実際のパターンマッチングに使うのは狭い領域なので）
 WASHER_CAP_TRIM_TOP		= 1/4*1
@@ -23,8 +10,8 @@ WASHER_CAP_TRIM_BOTTOM	= 1/4*4
 WASHER_CAP_TRIM_LEFT	= 1/4*1
 WASHER_CAP_TRIM_RIGHT	= 1/4*3
 # 食洗器撮影写真サイズ
-CAPTURE_WIDTH	= 2592
-CAPTURE_HEIGHT	= 1944
+CAPTURE_WIDTH	= 1280
+CAPTURE_HEIGHT	= 960
 
 MAIN_WIDTH = 240
 
@@ -90,13 +77,13 @@ def match(temp_file):
 	cv2.rectangle(dst, tl, br, color=(0,255,0), thickness=1)
 
 	# 2h
-	tl2 = maxLoc[0]+tpl.shape[1], maxLoc[1]+20
-	br2 = tl2[0]+12, tl2[1]+12
+	tl2 = maxLoc[0]+tpl.shape[1], maxLoc[1]+10
+	br2 = tl2[0]+6, tl2[1]+6
 	cv2.rectangle(dst, tl2, br2, color=(255,0,0),thickness=1)
 
 	# 4h
-	tl3 = maxLoc[0]+tpl.shape[1], maxLoc[1]+2+6
-	br3 = tl3[0]+12, tl3[1]+12
+	tl3 = maxLoc[0]+tpl.shape[1], maxLoc[1]+4
+	br3 = tl3[0]+6, tl3[1]+6
 	cv2.rectangle(dst, tl3, br3, color=(255,0,0),thickness=1)
 
 
@@ -108,14 +95,10 @@ def match(temp_file):
 	print( f"4H:{box4.T[2].flatten().mean()}")
 
 	cv2.imwrite("result.png", dst)
-	#cv2.imshow("frame", dst)
-
-	#cv2.waitKey(0)
-	#cv2.destroyAllWindows()
 
 
 #print("open")
-#match( TEMP_CASTELLI_OPEN )
+#match("./pattern/castelli_light_open_small.png" )
 print("close")
-match( TEMP_CASTELLI_CLOSE )
+match( "./pattern/castelli_light_close_small.png" )
 

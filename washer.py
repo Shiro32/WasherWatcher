@@ -26,24 +26,14 @@ import globals as g # グローバル変数・関数
 # --------------------- washer内の定数 ---------------------
 # テンプレート写真
 
-# 明るい・ドア閉
-TEMP_LIGHT_CLOSE_OFF= "./pattern/icon_light_close_off.png"	# 予約なし
-TEMP_LIGHT_CLOSE_2H	= "./pattern/icon_light_close_2h.png"	# ２ｈ予約
-TEMP_LIGHT_CLOSE_4H	= "./pattern/icon_light_close_4h.png"	# ４ｈ予約
-
-# 明るい・ドア開
-TEMP_LIGHT_OPEN_OFF	= "./pattern/icon_light_open_off.png"	# 予約なし
-TEMP_LIGHT_OPEN_2H	= "./pattern/icon_light_open_2h.png"	# ２ｈ予約
-TEMP_LIGHT_OPEN_4H	= "./pattern/icon_light_open_4h.png"	# ４ｈ予約
-
 # CASTELLIマークでOPEN/CLOSEを判定する
 # 明るい部屋
-TEMP_CASTELLI_LIGHT_OPEN  = "./pattern/castelli_light_open.png"
-TEMP_CASTELLI_LIGHT_CLOSE = "./pattern/castelli_light_close.png"
+TEMP_CASTELLI_LIGHT_OPEN  = "./pattern/castelli_light_open_small.png"
+TEMP_CASTELLI_LIGHT_CLOSE = "./pattern/castelli_light_close_small.png"
 
 # 暗い部屋
-TEMP_CASTELLI_DARK_OPEN  = "./pattern/castelli_dark_open2.png"
-TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close2.png"
+TEMP_CASTELLI_DARK_OPEN  = "./pattern/castelli_dark_open2_small.png"
+TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close2_small.png"
 
 
 # テンプレートとマッチングの最低閾値
@@ -128,18 +118,8 @@ def _capture_washer( full:bool )->np.ndarray:
 	### TODO: もしかするとカメラ初期化は１回だけにした方がよいかも！！！
 	global picam
 
-	g.log( "WASHER","写真撮影")
-
-	#picam = Picamera2()
-	#picam.configure(
-	#	picam.create_preview_configuration(
-	#		main={"format": 'XRGB8888', "size": (CAPTURE_WIDTH, CAPTURE_HEIGHT)}))
-
 	# 撮影
-#	picam.start()
 	img = picam.capture_array()
-#	picam.stop()
-#	picam.close()
 
 	# カラーモードの調整なのかな
 	chs = 1 if len(img.shape)==2 else img.shape[2]
@@ -156,7 +136,6 @@ def _capture_washer( full:bool )->np.ndarray:
 			int(h*WASHER_CAP_TRIM_TOP) :int(h*WASHER_CAP_TRIM_BOTTOM),
 			int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
 
-	g.log( "WASHER","写真撮影完了")
 	#cv2.imwrite( "shot.png", img )
 	return img
 
@@ -213,21 +192,21 @@ def _monitor_washer_now()->Tuple[int, int]:
 		# CLOSE状態認識
 		door = WASHER_DOOR_CLOSE
 		# 2H
-		timer2h_TL = maxLoc_cl[0]+temp_light_close.shape[1]	, maxLoc_cl[1]+20
-		timer2h_BR = timer2h_TL[0]+12						, timer2h_TL[1]+12
+		timer2h_TL = maxLoc_cl[0]+temp_light_close.shape[1]	, maxLoc_cl[1]+10
+		timer2h_BR = timer2h_TL[0]+6						, timer2h_TL[1]+6
 		# 4H
-		timer4h_TL = maxLoc_cl[0]+temp_light_close.shape[1]	, maxLoc_cl[1]+8
-		timer4h_BR = timer4h_TL[0]+12						, timer4h_TL[1]+12
+		timer4h_TL = maxLoc_cl[0]+temp_light_close.shape[1]	, maxLoc_cl[1]+4
+		timer4h_BR = timer4h_TL[0]+6						, timer4h_TL[1]+6
 
 	else:
 		# OPEN状態認識
 		door = WASHER_DOOR_OPEN
 		# 2H
-		timer2h_TL = maxLoc_op[0]+temp_light_open.shape[1]	, maxLoc_op[1]+27
-		timer2h_BR = timer2h_TL[0]+13						, timer2h_TL[1]+12
+		timer2h_TL = maxLoc_op[0]+temp_light_open.shape[1]	, maxLoc_op[1]+13
+		timer2h_BR = timer2h_TL[0]+7						, timer2h_TL[1]+6
 		# 4H
-		timer4h_TL = maxLoc_op[0]+temp_light_open.shape[1]	, maxLoc_op[1]+10
-		timer4h_BR = timer4h_TL[0]+13						, timer4h_TL[1]+13
+		timer4h_TL = maxLoc_op[0]+temp_light_open.shape[1]	, maxLoc_op[1]+5
+		timer4h_BR = timer4h_TL[0]+7						, timer4h_TL[1]+6
 
 	# 2Hと4HタイマーLEDの領域、赤の重さを算出
 	box2 = img[ timer2h_TL[1]:timer2h_BR[1], timer2h_TL[0]:timer2h_BR[0] ]
@@ -243,7 +222,7 @@ def _monitor_washer_now()->Tuple[int, int]:
 	elif c4>TEMP_TIMER_LED_THRESHOLD and c2<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_4H
 	else							 : timer = WASHER_TIMER_OFF
 
-	g.log("WASHER", f"一致検出（DOOR={_door(door)}/TIMER={_timer(timer)}）")
+	g.log("WASHER", f"一致検出（{_door(door)}/{_timer(timer)}）")
 	return door, timer
 
 
@@ -383,7 +362,8 @@ def monitor_washer()->None:
 			g.log("WASHER","タイマーがセットされました")
 			g.talk("ta'ima-ga settosaremasita.")
 
-	g.log("WASHER", f"現状認識：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
+	g.log("WASHER", f"食洗器チェック終了：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
+	g.log("WASHER","")
 	return
 
 # ------------------------------------------------------------------------------
