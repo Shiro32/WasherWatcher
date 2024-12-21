@@ -38,7 +38,7 @@ TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close2_small.png"
 
 # テンプレートとマッチングの最低閾値
 TEMP_MATCHING_THRESHOLD = 0.70	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
-TEMP_TIMER_LED_THRESHOLD = 80	# LED点灯とみなす輝度
+TEMP_TIMER_LED_THRESHOLD = 60	# LED点灯とみなす輝度
 
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
