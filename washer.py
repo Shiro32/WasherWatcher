@@ -42,7 +42,7 @@ TEMP_TIMER_LED_THRESHOLD = 80	# LED点灯とみなす輝度
 
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
-DOOR_OPEN_CHECK_TIMER_s = 1*60
+DOOR_OPEN_CHECK_TIMER_s = 5*60
 
 # 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 1280 #2592
