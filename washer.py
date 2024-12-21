@@ -52,11 +52,11 @@ TEMP_TIMER_LED_THRESHOLD = 80	# LED点灯とみなす輝度
 
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
-DOOR_OPEN_CHECK_TIMER_s = 5*60
+DOOR_OPEN_CHECK_TIMER_s = 1*60
 
 # 食洗器撮影写真サイズ
-CAPTURE_WIDTH	= 2592
-CAPTURE_HEIGHT	= 1944
+CAPTURE_WIDTH	= 1280 #2592
+CAPTURE_HEIGHT	= 960 #1944
 
 # プレビューサイズ
 PREVIEW_ASPECT	= CAPTURE_WIDTH/CAPTURE_HEIGHT	# アスペクトレシオ（プレビュー用）
@@ -83,7 +83,7 @@ picam = 1
 
 # 最後にドア閉塞を確認した時刻
 # ここからの経過時間がDOOR_OPEN_CHECK_TIMER_sを超えると、開放とみなす
-last_closed_door_time = 1
+last_closed_door_time = datetime.datetime.now()
 
 # ------------------------------------------------------------------------------
 def init_camera():
@@ -180,7 +180,7 @@ def _monitor_washer_now()->Tuple[int, int]:
 	# 明るさに応じてOPEN/CLOSEの両方の相関係数を出す
 
 	# どうせグレー化して比較するなら、DARKで良くない？
-	if pi.read(CDS_PIN)==pigpio.HIGH and False:
+	if pi.read(CDS_PIN)==pigpio.HIGH:
 		# 明るい場合
 		g.log("WASHER", "CDS=明るい")
 		result_cl = cv2.matchTemplate(img_g, temp_light_close, cv2.TM_CCOEFF_NORMED)
@@ -200,10 +200,15 @@ def _monitor_washer_now()->Tuple[int, int]:
 
 	# 開閉どちらも閾値を下回る場合は、判定をあきらめる
 	if max(corr_cl, corr_op) < TEMP_MATCHING_THRESHOLD:
-		g.log( "WASHER", "判定できず")
+		g.log( "WASHER", "判定不能（相関が低すぎる）")
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
-	# ドアの開閉に合わせて、タイマーLEDの領域を設定
+	# 開閉の差が小さすぎる場合も、判定をあきらめる
+	if abs(corr_cl - corr_op) < 0.1:
+		g.log("WASHER", "判定不能（開閉に差がない）")
+		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
+
+	# ドアの開閉に合わせて、検査すべきタイマーLEDの領域を設定
 	if corr_cl>=corr_op:
 		# CLOSE状態認識
 		door = WASHER_DOOR_CLOSE
@@ -232,8 +237,10 @@ def _monitor_washer_now()->Tuple[int, int]:
 
 	g.log("WASHER", f"C2:{c2:.0f} / C4:{c4:.0f}")
 
-	if   c2>TEMP_TIMER_LED_THRESHOLD : timer = WASHER_TIMER_2H
-	elif c4>TEMP_TIMER_LED_THRESHOLD : timer = WASHER_TIMER_4H
+	# いよいよLED判定
+	# まれにc2,c4とも巨大になる時があり、片方だけ閾値を超えた際に発動
+	if   c2>TEMP_TIMER_LED_THRESHOLD and c4<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_2H
+	elif c4>TEMP_TIMER_LED_THRESHOLD and c2<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_4H
 	else							 : timer = WASHER_TIMER_OFF
 
 	g.log("WASHER", f"一致検出（DOOR={_door(door)}/TIMER={_timer(timer)}）")
@@ -297,43 +304,47 @@ def monitor_washer()->None:
 
 	# ドア・タイマによるdishesの状態設定・アクション
 
-	# ドア状態の変化検出
-
 	# ドアが閉まっている
 	if door==WASHER_DOOR_CLOSE:
 		# 最後にドアが閉まっていた時刻を記憶
 		last_closed_door_time = datetime.datetime.now()
 
-		if old_washer_door != WASHER_DOOR_CLOSE:
+		# ドア閉で警報は１回だけ
+		if old_washer_door == WASHER_DOOR_OPEN:
 			g.log("WASHER", "ドアがしまりました")
 			g.talk("do'aga simattayo")
 
 	# ドアが開いている
 	else:
 		# 食器は入っていない
-		# 一定時間空けたなら、汚れた食器を入れたハズ
 		if washer_dishes==WASHER_DISHES_EMPTY:
+			# 一定時間空けたなら、汚れた食器を入れたハズ
 			if (datetime.datetime.now()-last_closed_door_time).seconds > DOOR_OPEN_CHECK_TIMER_s:
-				g.log("WASHER", "ドアが長時間開きました（EMPTY認識）")
-				g.talk("shokki'wo iretemasune.")
-
 				# 食器ステータスを「汚れ」に
 				washer_dishes = WASHER_DISHES_DIRTY
+				g.log("WASHER", "ドアが長時間開きました（EMPTY→DIRTY）")
+				g.talk("shokki'wo iretemasune.")
+				g.talk("ta'ima-no/se'ttowo wasu'renaide/kuda'saine-")
+
 				# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
 				schedule.every(30).minutes.do(check_washer).tag("check_washer")
 
 		# すでに食器が入っている
 		elif washer_dishes==WASHER_DISHES_DIRTY:
-			g.log("WASHER", "ドア開放を検出（既にDIRTY認識）")
-			g.talk("WASHER", "ta'ima-no se'ttowo wasurezuni.")
+			g.log("WASHER", "ドア開放を検出（DIRTY）")
+			# 音声は開けた時の１回だけ
+			if old_washer_door == WASHER_DOOR_CLOSE:
+				g.talk("ta'ima-no se'ttowo wasurezuni.")
 
 		# 洗浄済みの食器が入っている
 		# 開けたということは、食器を取り出そうとしているタイミングのハズ
 		else:
-			g.log("WASHER", "ドア解放を検出（WASHED認識）")
-			g.talk("shokki'wa senjo'uzumi/de'suyo.")
-			start_alert_washed()
+			g.log("WASHER", "ドア開放を検出（WASHED）")
 			washer_dishes = WASHER_DISHES_EMPTY	# 食器「空」にする
+			# 音声は開けた時の１回だけ
+			if old_washer_door == WASHER_DOOR_CLOSE:
+				g.talk("shokki'wa senjo'uzumi/de'suyo.")
+				start_alert_washed()
 
 
 	#if old_washer_door != door:
@@ -512,14 +523,14 @@ def alert_washed()->None:
 	"""
 	g.set_dialog( PIC_DIRTY_OK, stop_alert_washed )
 	g.log("TIMER", "食器は洗浄済み！")
-	g.talk("sho'kkiwa ara'tte/ari'masuyo-")
+#	g.talk("sho'kkiwa ara'tte/ari'masuyo-")
 
 def stop_alert_washed()->None:
 	"""
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("TIMER","終了～")
-	g.talk("ke'ihou tei'si")
+	g.talk("pipi")
 	schedule.clear("alert_washed")
 	schedule.clear("stop_alert_washed")
 	g.update_display_immediately()

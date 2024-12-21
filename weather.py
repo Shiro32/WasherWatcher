@@ -234,7 +234,7 @@ def check_weather_info( days:int, voice:int )->None:
 	temp_min, temp_max, rain_AM, rain_PM = get_forecast_temp_rain( days )
 
 	if temp_min==False:
-		g.log( "weather", str(e) )
+		g.log( "weather", "errorダス" )
 		g.talk("te'nki yo'houni tunagarimasen.", TALK_FORCE)
 
 	else:

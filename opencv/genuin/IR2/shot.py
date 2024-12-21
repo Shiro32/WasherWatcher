@@ -5,8 +5,8 @@ import sys
 
 picam2 = Picamera2()
 #picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (640, 480)}))
-#picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (1280, 960)    }))
-picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (2592, 1944)    }))
+picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (1280, 960)    }))
+#picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (2592, 1944)    }))
 
 
 if( len(sys.argv)!=2 ):
