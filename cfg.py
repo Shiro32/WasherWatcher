@@ -69,7 +69,7 @@ WASHER_DISHES_EMPTY	= 1
 WASHER_DISHES_DIRTY	= 2
 WASHER_DISHES_WASHED = 3 #洗浄完了（朝に洗浄確認のため）
 
-MONITOR_WASHER_INTERVAL_s = 3
+MONITOR_WASHER_INTERVAL_s = 10
 WASHER_DIRTY_DISHES_INTERVAL_s = 10
 WASHER_DIRTY_DISHES_TIMER_s = 30
 
@@ -134,8 +134,8 @@ MAIN_HEIGHT	= EPD_HEIGHT - SBAR_HEIGHT
 MAIN_WIDTH	= EPD_WIDTH
 
 # --------------------- 各画面でのfont ---------------------
-info_title_font		= ImageFont.truetype( 'mplus-1mn-bold.ttf', 14)
-info_content_font	= ImageFont.truetype( 'mplus-1mn-regular.ttf', 14)
+info_title_font		= ImageFont.truetype( 'mplus-1mn-bold.ttf', 20)
+info_content_font	= ImageFont.truetype( 'mplus-1mn-regular.ttf', 18)
 
 normalFont 			= ImageFont.truetype( 'Font.ttc', 16)
 largeFont  			= ImageFont.truetype( 'mplus-1mn-light.ttf', 50)

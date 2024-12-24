@@ -63,11 +63,11 @@ def _receive_message_thread()->None:
 			g.log("COMM RECV", "受信待ち開始")
 			data = comm_socket.recv(1024)
 			if not data:
-				g.log( "COMM RECV","相手から通信切断")
+				g.log("COMM RECV","相手から通信切断")
 				break
 
 			data = data.decode()
-			g.log( "COMM RECV", data )
+			g.log("COMM RECV", data )
 
 			# 受信データによってさまざまな処理フラグを立てる
 			if data==COMM_RAIN_LOW:
@@ -96,19 +96,22 @@ def _receive_message_thread()->None:
 				g.log("COMM", "「タイマーOFF」を受信")
 			elif data=="2h":
 				washer.washer_timer = WASHER_TIMER_2H
-				g.log( "COMM", "「タイマー2H」を受信")
+				g.log("COMM", "「タイマー2H」を受信")
 			elif data=="4h":
 				washer.washer_timer = WASHER_TIMER_4H
-				g.log( "COMM", "「タイマー4H」を受信")
+				g.log("COMM", "「タイマー4H」を受信")
 			elif data=="empty":
 				washer.washer_dishes = WASHER_DISHES_EMPTY
-				g.log( "COMM", "「EMPTY」を受信")
+				g.log("COMM", "「EMPTY」を受信")
 			elif data=="dirty":
 				washer.washer_dishes = WASHER_DISHES_DIRTY
-				g.log( "COMM", "「DIRTY」を受信")
+				g.log("COMM", "「DIRTY」を受信")
 			elif data=="washed":
 				washer.washer_dishes = WASHER_DISHES_WASHED
-				g.log( "COMM", "「WASHED」を受信")
+				g.log("COMM", "「WASHED」を受信")
+			elif data=="save":
+				washer.save_matching_flag = True
+				g.log("COMM", "セーブしまっせ")
 			elif data=="shot":
 				img = washer._capture_washer(False)
 				cv2.imwrite("shot.png", img)
@@ -120,7 +123,7 @@ def _receive_message_thread()->None:
 			elif data=="monitor":
 				washer.monitor_washer()
 			else:
-				g.log( "COMM RECV", f"知らないメッセージ:{data}")
+				g.log("COMM RECV", f"知らないメッセージ:{data}")
 
 			# 受信処理が終了し、またsocket.recvに戻って待機
 		except ConnectionResetError:
@@ -142,7 +145,7 @@ def _send_message_thread( msg:str ):
 	・ACK/NACKは何もせず、一方的に送信
 	"""
 	global comm_status, comm_socket
-	g.log( "COMM SEND", msg )
+	g.log("COMM SEND", msg )
 
 	try:
 		if not comm_socket: # クライアントの接続が存在しない場合

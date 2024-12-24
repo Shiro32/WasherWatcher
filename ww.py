@@ -199,7 +199,7 @@ def draw_normal()->None:
 	if h>=0 and h<  9: x=0 # 朝までは当日天気
 	if h>=9 and h<=24: x=1 # 9時以降は翌日天気
 	day, telop, img, day_rain, max_temp, min_temp = weather.get_forecast_weather(x)
-
+	
 	# 日付
 	g.draw_main.text( (58 ,5), day, font=normal_font22, fill="black", anchor="ma")
 
@@ -230,7 +230,6 @@ def draw_normal()->None:
 	g.draw_main.text((220,  83), max_temp, font=digital_font30, anchor="ra", fill="white")
 	g.draw_main.text((220, 126), min_temp, font=digital_font30, anchor="ra", fill="white")
 
-
 #	g.draw_main.text( (120, 125+15), "昼", font=normal_font20, fill="black" )
 
 
@@ -241,7 +240,8 @@ def draw_normal()->None:
 def _print_one(label:str, msg:str):
 	global _dev_print_y
 
-	g.draw_main.text( (0, _dev_print_y), "{:12}: {}".format(label,msg), font=info_content_font, fill="black" )
+	g.draw_main.text((0, _dev_print_y), f"{label:6s}:{msg}", font=info_content_font, fill="white")
+#	g.draw_main.text( (0, _dev_print_y), "{:12}: {}".format(label,msg), font=info_content_font, fill="black" )
 	_dev_print_y += _dev_print_h
 
 def display_device_info():
@@ -250,7 +250,7 @@ def display_device_info():
 	g.log("draw_device", "begin")
 
 	global _dev_print_y
-	_dev_print_y = 15
+	_dev_print_y = 100
 
 	try:
 		ip = ipget.ipget()
@@ -270,19 +270,26 @@ def display_device_info():
 	res = proc.communicate()[0].decode("utf-8")	 #処理実行を待つ(†1)
 
 	# 各情報を描いていく
-	g.draw_main.text( (0, 0), "【デバイス動作情報】", font=info_title_font, fill="black" )
+	#g.draw_main.text( (0, 0), "【デバイス動作情報】", font=info_title_font, fill="black" )
 
-	_print_one( "running"		, res )
-	_print_one( "network"		, msg )
-	_print_one( "SLIDE SW"		, str(pi.read(SLIDE_SW_PIN)) )
-	_print_one( "PIR"			, str(pi.read(PIR_PIN)) )
-	_print_one( "CDS"			, str(pi.read(CDS_PIN))	)
-	_print_one( "sleep mode"	, sleep_mode_label[g.sleep_mode] )
-	_print_one( "time mode"		, time_mode_label[g.time_mode] )
+	if type(washer.newest_matching_image)!=str:
+		img = Image.fromarray(washer.newest_matching_image)
+		img = img.resize( (img.width//2, img.height//2) )
+		g.image_main_buf.paste( img )
 
-	_print_one( "Weather GPIO"	,str( comm.check_rain_status() ) )
-	_print_one( "weather mode"	,weather_mode_label[rain.rain_mode] )
+	_print_one("DOOR"	, washer.door_status())
+	_print_one("TIMER"	, washer.timer_status())
+	_print_one("DISHES"	, washer.dishes_status())
 
+	#_print_one( "running"		, res )
+	#_print_one( "network"		, msg )
+	#_print_one( "SLIDE SW"		, str(pi.read(SLIDE_SW_PIN)) )
+	#_print_one( "PIR"			, str(pi.read(PIR_PIN)) )
+	#_print_one( "CDS"			, str(pi.read(CDS_PIN))	)
+	#_print_one( "sleep mode"	, sleep_mode_label[g.sleep_mode] )
+	#_print_one( "time mode"		, time_mode_label[g.time_mode] )
+	#_print_one( "Weather GPIO"	,str( comm.check_rain_status() ) )
+	#_print_one( "weather mode"	,weather_mode_label[rain.rain_mode] )
 	#_print_one( "Weather GPIO"		, str(pi.read(RAIN_PIN)) )
 	#_print_one( "weather mode"		, weather_mode_label[rain.rain_mode] )
 
@@ -298,7 +305,7 @@ def init_at_boot()->None:
 	"""	
 	global disp_mode
 
-	disp_mode = DISP_MODE_NORMAL
+	disp_mode = DISP_MODE_DEVICE_INFO
 
 	# スクリーンセーバー
 	g.reset_screen_saver()
@@ -314,7 +321,7 @@ def init_at_boot()->None:
 	schedule.every(DISP_UPDATE_INTERVAL_s).seconds		.do(update_display) # 画面更新（最短10秒）
 	schedule.every().hour.at("00:00")					.do(rain.oclock)		# 時報処理
 	schedule.every(LED_BLINK_INTERVAL_s).seconds		.do(g.handle_LED)		# フロントLED部リンク
-	schedule.every(60).minutes							.do(weather.update_forecast_weather)
+	schedule.every().hour.at("00:00")					.do(weather.update_forecast_weather)
 	weather.update_forecast_weather()
 
 	# RAINの時計処理
@@ -336,7 +343,7 @@ def init_at_boot()->None:
 	# 初回描画は早めに（ちっとも早くならないけど）
 	g.update_display_immediately()
 #	g.talk( voice_opening2 )
-	g.talk( "hoge" )
+#	g.talk( "hoge" )
 
 	#プレビュー
 	#washer.preview_washser()
@@ -384,33 +391,15 @@ if __name__ == "__main__":
 				g.front_button_sound()
 				g.reset_front_button_status()
 
-				# プレビュー
-				washer.preview_washser()
-
 				# 現在の次のモードへ遷移
-#				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_CLOCK, DISP_MODE_USEFUL, DISP_MODE_DEVICE_INFO][(disp_mode+1)%4]
+				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_DEVICE_INFO][(disp_mode+1)%2]
 				g.update_display_immediately()
 
 
 			# 最長ロングプレス（電源オフ）
 			if btn==PUSH_SUPER_LONGPRESS:
-				pass
-#				washer.preview_washser()
-				#g.front_button_sound()
-				#g.reset_front_button_status()
-
-				#g.talk( voice_shutdown1, True)
-				#g.clear_image()
-				#g.image_buf.paste( ICON_BYE_MAC, (0,0) )
-				#g.epd_display( False )
-
-				#g.log( "SHUTDOWN" )
-				#g.talk( voice_shutdown2, True )
-				#g.talk( voice_shutdown3, False )
-
-				#pi.stop()
-				#os.system( "sudo shutdown now" )
-				#sys.exit()
+				# プレビュー
+				washer.preview_washser()
 
 			# スライドスイッチをポーリングで検出してシャットダウン
 			#if pi.read(SLIDE_SW_PIN)==pigpio.HIGH:

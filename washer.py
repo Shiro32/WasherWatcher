@@ -38,7 +38,7 @@ TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close2_small.png"
 
 # テンプレートとマッチングの最低閾値
 TEMP_MATCHING_THRESHOLD = 0.70	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
-TEMP_TIMER_LED_THRESHOLD = 60	# LED点灯とみなす輝度
+TEMP_TIMER_LED_THRESHOLD = 62	# LED点灯とみなす輝度
 
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
@@ -54,11 +54,11 @@ PREVIEW_WIDTH	= MAIN_WIDTH
 PREVIEW_HEIGHT	= int(PREVIEW_WIDTH/PREVIEW_ASPECT)
 
 # 撮影写真のトリミング領域（実際のパターンマッチングに使うのは狭い領域なので）
-WASHER_CAP_TRIM_TOP		= 1/4*1
-WASHER_CAP_TRIM_BOTTOM	= 1/4*4
+WASHER_CAP_TRIM_TOP		= 1/6*3
+WASHER_CAP_TRIM_BOTTOM	= 1/6*5
 
-WASHER_CAP_TRIM_LEFT	= 1/4*1
-WASHER_CAP_TRIM_RIGHT	= 1/4*3
+WASHER_CAP_TRIM_LEFT	= 1/6*2
+WASHER_CAP_TRIM_RIGHT	= 1/6*4
 
 # --------------------- washer内のグローバル変数 ---------------------
 
@@ -139,6 +139,9 @@ def _capture_washer( full:bool )->np.ndarray:
 	#cv2.imwrite( "shot.png", img )
 	return img
 
+newest_matching_image = ""
+save_matching_flag = False
+
 # ------------------------------------------------------------------------------
 def _monitor_washer_now()->Tuple[int, int]:
 	"""
@@ -149,6 +152,8 @@ def _monitor_washer_now()->Tuple[int, int]:
 	　x : ドアの状態（open/close）
 	　y : タイマの状態（off/2h/4h）
 	"""
+	global newest_matching_image, save_matching_flag
+
 	g.log( "WASHER","食洗器チェック開始")
 
 	# 写真を撮影
@@ -161,33 +166,35 @@ def _monitor_washer_now()->Tuple[int, int]:
 	# どうせグレー化して比較するなら、DARKで良くない？
 	if pi.read(CDS_PIN)==pigpio.HIGH:
 		# 明るい場合
-		g.log("WASHER", "CDS=明るい")
+		cds="明るい"
 		result_cl = cv2.matchTemplate(img_g, temp_light_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_light_open, cv2.TM_CCOEFF_NORMED)
 	else:
 		# 暗い場合
+		cds="暗い"
 		result_cl = cv2.matchTemplate(img_g, temp_dark_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_dark_open	, cv2.TM_CCOEFF_NORMED)
 		g.log( "WASHER", "CDS=暗い")
 
 	_, corr_cl, _, maxLoc_cl = cv2.minMaxLoc(result_cl)
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
-	g.log( "WASHER", f"CLOSE:{corr_cl:.2f} / OPEN:{corr_op:.2f}" )
+	g.log( "WASHER", f"CDS:{cds} / CL:{corr_cl:.2f} / OP:{corr_op:.2f}" )
 	
-	# 開閉どちらかのマークが読み取れなければ終了→この考え方はやめた
-	#if corr_cl<TEMP_MATCHING_THRESHOLD or corr_op<TEMP_MATCHING_THRESHOLD:
-
-	# 開閉どちらも閾値を下回る場合は、判定をあきらめる
+	# 開きか、閉めか、どちらかを判別できないときは諦める
+	# （ケース１）開閉どちらも閾値を下回る場合
 	if max(corr_cl, corr_op) < TEMP_MATCHING_THRESHOLD:
-		g.log( "WASHER", "判定不能（相関が低すぎる）")
+		g.log("WASHER", "判定不能（相関が低すぎる）")
+		#g.talk("jama'/de'su.")
+		#g.talk("mie'ngana")
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
-	# 開閉の差が小さすぎる場合も、判定をあきらめる
+	# （ケース２）開閉の差が小さすぎる場合
 	if abs(corr_cl - corr_op) < 0.1:
 		g.log("WASHER", "判定不能（開閉に差がない）")
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
-	# ドアの開閉に合わせて、検査すべきタイマーLEDの領域を設定
+	# タイマーLED判定に移る	
+	# ドアの開閉に合わせて、検査すべきタイマーLEDの領域を微調整
 	if corr_cl>=corr_op:
 		# CLOSE状態認識
 		door = WASHER_DOOR_CLOSE
@@ -197,6 +204,9 @@ def _monitor_washer_now()->Tuple[int, int]:
 		# 4H
 		timer4h_TL = maxLoc_cl[0]+temp_light_close.shape[1]	, maxLoc_cl[1]+4
 		timer4h_BR = timer4h_TL[0]+6						, timer4h_TL[1]+6
+
+		tl = maxLoc_cl[0], maxLoc_cl[1]
+		br = maxLoc_cl[0]+temp_light_close.shape[1], maxLoc_cl[1]+temp_light_close.shape[0]
 
 	else:
 		# OPEN状態認識
@@ -208,13 +218,32 @@ def _monitor_washer_now()->Tuple[int, int]:
 		timer4h_TL = maxLoc_op[0]+temp_light_open.shape[1]	, maxLoc_op[1]+5
 		timer4h_BR = timer4h_TL[0]+7						, timer4h_TL[1]+6
 
+		tl = maxLoc_op[0], maxLoc_op[1]
+		br = maxLoc_op[0]+temp_light_open.shape[1], maxLoc_op[1]+temp_light_open.shape[0]
+
 	# 2Hと4HタイマーLEDの領域、赤の重さを算出
 	box2 = img[ timer2h_TL[1]:timer2h_BR[1], timer2h_TL[0]:timer2h_BR[0] ]
 	box4 = img[ timer4h_TL[1]:timer4h_BR[1], timer4h_TL[0]:timer4h_BR[0] ]
 	c2 = box2.T[2].flatten().mean()
 	c4 = box4.T[2].flatten().mean()
 
-	g.log("WASHER", f"C2:{c2:.0f} / C4:{c4:.0f}")
+	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f}")
+
+	# 半分デバッグ用だけど、サソリ・4H・2Hの各認識フレームを描く
+	# メインディスプレイに出せるように、グローバルにも入れておく
+	cv2.rectangle(img, timer2h_TL, timer2h_BR, color=(255,255,0), thickness=1)
+	cv2.rectangle(img, timer4h_TL, timer4h_BR, color=(255,255,0), thickness=1)
+	cv2.rectangle(img, tl, br, color=(255,255,255), thickness=1)
+	newest_matching_image = img.copy()
+	if save_matching_flag:
+		save_matching_flag = False
+		cv2.imwrite(f"result_CL{corr_cl:.2f}_OP{corr_op:.2f}.png", img)
+
+	# とんでもない位置にサソリをご認識した場合、その後のT2、T4ともめちゃめちゃになるので、unknownにする
+	if c2>TEMP_TIMER_LED_THRESHOLD and c4>TEMP_TIMER_LED_THRESHOLD:
+		cv2.imwrite("c2c4error.png", img)
+		g.talk("taima- ninsiki era-desu.desu.")
+		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
 	# いよいよLED判定
 	# まれにc2,c4とも巨大になる時があり、片方だけ閾値を超えた際に発動
@@ -243,6 +272,15 @@ def _dishes(dishes:int)->str:
 	elif dishes==WASHER_DISHES_DIRTY : return "DIRTY"
 	elif dishes==WASHER_DISHES_WASHED: return "WASHED"
 	else: return "--"
+
+def door_status()->str:
+	return _door(washer_door)
+
+def timer_status()->str:
+	return _timer(washer_timer)
+
+def dishes_status()->str:
+	return _dishes(washer_dishes)
 
 def washer_status()->str:
 	return _door(washer_door)+","+_timer(washer_timer)+","+_dishes(washer_dishes)

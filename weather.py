@@ -146,6 +146,22 @@ def kanji2voice(message):
 		line+=1
 
 # ------------------------------------------------------------------------------
+def _check_value(val:str)->str:
+	"""
+	天気予報の各データ（降水量、気温等）がちゃんと数値データとしてもらえているかをチェックする
+	サイトの都合で、空や"---"となるときもあるので、その対応
+	"""
+	# そもそも空ならエラー
+	if val is None: return "99"
+	
+	# 文字列が数値化できるかどうかのチェック
+	try:
+		float(val)
+	except ValueError:
+		return "99"
+	else:
+		return val
+# ------------------------------------------------------------------------------
 def update_forecast_weather():
 	"""
 	Livedoor天気予報にアクセスして天気情報を更新する
@@ -170,25 +186,27 @@ def update_forecast_weather():
 		tomorrow_telop = ld_weather['forecasts'][1]['telop']
 		tomorrow_dt = datetime.datetime.strptime(ld_weather['forecasts'][1]['date'], '%Y-%m-%d').date()
 		tomorrow_date = tomorrow_dt.strftime('%m月%d日')
-		tomorow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
-		am_rain = ld_weather['forecasts'][1]['chanceOfRain']['T06_12'][:-1]
-		pm_rain = ld_weather['forecasts'][1]['chanceOfRain']['T12_18'][:-1]
-		max_temp = ld_weather['forecasts'][1]['temperature']['max']['celsius']
-		min_temp = ld_weather['forecasts'][1]['temperature']['min']['celsius']
-		day_rain = max(am_rain, pm_rain)
-		forecast_cache[1]=tomorrow_date, tomorrow_telop, tomorow_image, day_rain, max_temp, min_temp
+		tomorrow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
+		am_rain  = _check_value(ld_weather['forecasts'][1]['chanceOfRain']['T06_12'][:-1])
+		pm_rain  = _check_value(ld_weather['forecasts'][1]['chanceOfRain']['T12_18'][:-1])
+		max_temp = _check_value(ld_weather['forecasts'][1]['temperature']['max']['celsius'])
+		min_temp = _check_value(ld_weather['forecasts'][1]['temperature']['min']['celsius'])
+		day_rain = _check_value(max(am_rain, pm_rain))		
+		forecast_cache[1]=tomorrow_date, tomorrow_telop, tomorrow_image, day_rain, max_temp, min_temp
+		g.log("WEATHER UPDATE",f"{tomorrow_date=}{tomorrow_telop=}{tomorrow_image=}{day_rain=}{max_temp=}{min_temp=}")
 
 		# 今日の天気予報
 		tomorrow_telop = ld_weather['forecasts'][0]['telop']
 		tomorrow_dt = datetime.datetime.strptime(ld_weather['forecasts'][0]['date'], '%Y-%m-%d').date()
 		tomorrow_date = tomorrow_dt.strftime('%m月%d日')
-		tomorow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
-		am_rain = ld_weather['forecasts'][0]['chanceOfRain']['T06_12'][:-1]
-		pm_rain = ld_weather['forecasts'][0]['chanceOfRain']['T12_18'][:-1]
-		max_temp = ld_weather['forecasts'][0]['temperature']['max']['celsius']
-		min_temp = ld_weather['forecasts'][0]['temperature']['min']['celsius']
-		day_rain = max(am_rain, pm_rain)
-		forecast_cache[0]=tomorrow_date, tomorrow_telop, tomorow_image, day_rain, max_temp, min_temp
+		tomorrow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
+		am_rain  = _check_value(ld_weather['forecasts'][0]['chanceOfRain']['T06_12'][:-1])
+		pm_rain  = _check_value	(ld_weather['forecasts'][0]['chanceOfRain']['T12_18'][:-1])
+		max_temp = _check_value(ld_weather['forecasts'][0]['temperature']['max']['celsius'])
+		min_temp = _check_value(ld_weather['forecasts'][0]['temperature']['min']['celsius'])
+		day_rain = _check_value(max(am_rain, pm_rain))
+		forecast_cache[0]=tomorrow_date, tomorrow_telop, tomorrow_image, day_rain, max_temp, min_temp
+		g.log("WEATHER UPDATE",f"{tomorrow_date=}{tomorrow_telop=}{tomorrow_image=}{day_rain=}{max_temp=}{min_temp=}")
 
 def get_forecast_weather( days: int ):
 	return forecast_cache[days]
