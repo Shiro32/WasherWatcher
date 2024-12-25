@@ -27,18 +27,26 @@ import globals as g # グローバル変数・関数
 # テンプレート写真
 
 # CASTELLIマークでOPEN/CLOSEを判定する
-# 明るい部屋
-TEMP_CASTELLI_LIGHT_OPEN  = "./pattern/castelli_light_open_small.png"
-TEMP_CASTELLI_LIGHT_CLOSE = "./pattern/castelli_light_close_small.png"
+CASTELLI_LIGHT_OPEN  = "./pattern/castelli_light_open_small.png"
+CASTELLI_LIGHT_CLOSE = "./pattern/castelli_light_close_small.png"
+CASTELLI_DARK_OPEN  = "./pattern/castelli_dark_open2_small.png"
+CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close2_small.png"
 
-# 暗い部屋
-TEMP_CASTELLI_DARK_OPEN  = "./pattern/castelli_dark_open2_small.png"
-TEMP_CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close2_small.png"
+BUTTONS_LIGHT_OPEN  = "./pattern/3buttons_light_open.png"
+BUTTONS_LIGHT_CLOSE = "./pattern/3buttons_light_close.png"
+BUTTONS_DARK_OPEN   = "./pattern/3buttons_dark_open.png"
+BUTTONS_DARK_CLOSE  = "./pattern/3buttons_dark_close.png"
 
+TEMP_LIGHT_OPEN  = BUTTONS_LIGHT_OPEN
+TEMP_LIGHT_CLOSE = BUTTONS_LIGHT_CLOSE
+TEMP_DARK_OPEN   = BUTTONS_DARK_OPEN
+TEMP_DARK_CLOSE  = BUTTONS_DARK_CLOSE
 
 # テンプレートとマッチングの最低閾値
-TEMP_MATCHING_THRESHOLD = 0.70	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
-TEMP_TIMER_LED_THRESHOLD = 62	# LED点灯とみなす輝度
+TEMP_DAY_MATCHING_THRESHOLD 	= 0.65	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
+TEMP_NIGHT_MATCHING_THRESHOLD	= 0.75	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
+
+TEMP_TIMER_LED_THRESHOLD = 50	# LED点灯とみなす輝度(暗い＝５０、明るい＝６０)
 
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
@@ -87,21 +95,18 @@ def init_camera():
 	picam.start()
 
 
+def _read_template(fname:str):
+	a = cv2.imread(fname)
+	return cv2.cvtColor(a, cv2.COLOR_RGB2GRAY)
+
 def init_washer():
 	global temp_dark_close, temp_dark_open
 	global temp_light_close, temp_light_open
 
-	temp_light_close = cv2.imread( TEMP_CASTELLI_LIGHT_CLOSE )
-	temp_light_close = cv2.cvtColor( temp_light_close, cv2.COLOR_RGB2GRAY )
-
-	temp_light_open  = cv2.imread( TEMP_CASTELLI_LIGHT_OPEN )
-	temp_light_open  = cv2.cvtColor( temp_light_open, cv2.COLOR_RGB2GRAY )
-
-	temp_dark_close  = cv2.imread( TEMP_CASTELLI_DARK_CLOSE )
-	temp_dark_close  = cv2.cvtColor( temp_dark_close, cv2.COLOR_RGB2GRAY )
-
-	temp_dark_open   = cv2.imread( TEMP_CASTELLI_DARK_OPEN )
-	temp_dark_open   = cv2.cvtColor( temp_dark_open, cv2.COLOR_RGB2GRAY )
+	temp_light_close = _read_template(TEMP_LIGHT_CLOSE)
+	temp_light_open  = _read_template(TEMP_LIGHT_OPEN)
+	temp_dark_close  = _read_template(TEMP_DARK_CLOSE)
+	temp_dark_open   = _read_template(TEMP_DARK_OPEN )
 
 	init_camera()
 
@@ -169,12 +174,13 @@ def _monitor_washer_now()->Tuple[int, int]:
 		cds="明るい"
 		result_cl = cv2.matchTemplate(img_g, temp_light_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_light_open, cv2.TM_CCOEFF_NORMED)
+		thr = TEMP_DAY_MATCHING_THRESHOLD
 	else:
 		# 暗い場合
 		cds="暗い"
 		result_cl = cv2.matchTemplate(img_g, temp_dark_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_dark_open	, cv2.TM_CCOEFF_NORMED)
-		g.log( "WASHER", "CDS=暗い")
+		thr = TEMP_NIGHT_MATCHING_THRESHOLD
 
 	_, corr_cl, _, maxLoc_cl = cv2.minMaxLoc(result_cl)
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
@@ -182,7 +188,7 @@ def _monitor_washer_now()->Tuple[int, int]:
 	
 	# 開きか、閉めか、どちらかを判別できないときは諦める
 	# （ケース１）開閉どちらも閾値を下回る場合
-	if max(corr_cl, corr_op) < TEMP_MATCHING_THRESHOLD:
+	if max(corr_cl, corr_op) < thr:
 		g.log("WASHER", "判定不能（相関が低すぎる）")
 		#g.talk("jama'/de'su.")
 		#g.talk("mie'ngana")
@@ -199,11 +205,11 @@ def _monitor_washer_now()->Tuple[int, int]:
 		# CLOSE状態認識
 		door = WASHER_DOOR_CLOSE
 		# 2H
-		timer2h_TL = maxLoc_cl[0]+temp_light_close.shape[1]	, maxLoc_cl[1]+10
-		timer2h_BR = timer2h_TL[0]+6						, timer2h_TL[1]+6
+		timer2h_TL = maxLoc_cl[0]+22, maxLoc_cl[1]+14
+		timer2h_BR = timer2h_TL[0]+6, timer2h_TL[1]+6
 		# 4H
-		timer4h_TL = maxLoc_cl[0]+temp_light_close.shape[1]	, maxLoc_cl[1]+4
-		timer4h_BR = timer4h_TL[0]+6						, timer4h_TL[1]+6
+		timer4h_TL = maxLoc_cl[0]+22, maxLoc_cl[1]+8
+		timer4h_BR = timer4h_TL[0]+6, timer4h_TL[1]+6
 
 		tl = maxLoc_cl[0], maxLoc_cl[1]
 		br = maxLoc_cl[0]+temp_light_close.shape[1], maxLoc_cl[1]+temp_light_close.shape[0]
@@ -212,11 +218,11 @@ def _monitor_washer_now()->Tuple[int, int]:
 		# OPEN状態認識
 		door = WASHER_DOOR_OPEN
 		# 2H
-		timer2h_TL = maxLoc_op[0]+temp_light_open.shape[1]	, maxLoc_op[1]+13
-		timer2h_BR = timer2h_TL[0]+7						, timer2h_TL[1]+6
+		timer2h_TL = maxLoc_op[0]+30, maxLoc_op[1]+16
+		timer2h_BR = timer2h_TL[0]+6, timer2h_TL[1]+6
 		# 4H
-		timer4h_TL = maxLoc_op[0]+temp_light_open.shape[1]	, maxLoc_op[1]+5
-		timer4h_BR = timer4h_TL[0]+7						, timer4h_TL[1]+6
+		timer4h_TL = maxLoc_op[0]+30, maxLoc_op[1]+8
+		timer4h_BR = timer4h_TL[0]+6, timer4h_TL[1]+6
 
 		tl = maxLoc_op[0], maxLoc_op[1]
 		br = maxLoc_op[0]+temp_light_open.shape[1], maxLoc_op[1]+temp_light_open.shape[0]
