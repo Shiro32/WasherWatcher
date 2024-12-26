@@ -9,6 +9,38 @@
 # 2.ドアの状況（開・閉）
 # 3.予約状況（予約済み・なし）
 #
+# 最初に正確に２情報（ドア開閉・タイマー）を得ることが大切だけど、
+# しょぼいカメラで画像認識しているので、非常に難航・・・。
+#
+#　V1 LED自体を検出１
+#	・LED自体をパターンマッチングで見つけようとした
+#	・テンプレートは隣のボタン（予約）を込みで撮影
+#	・ドア開閉はテンプレートのズーム率で判定
+#	・４Hの暗さで見つけられずエラー多発＆遅い
+#	・１判定＝1分程度（論外）
+#
+# V2 LED自体を検出２
+#	・ズーム率を変えて探すのは時間がかかりすぎる反省
+#	・OPENとCLOSEの２パターンをマッチングさせ、近い方を採用する
+#	・タイマ（３パターン）×開閉（２パターン）＝６回マッチング
+#	・１判定＝40秒程度
+#
+# V3 カステリを検出
+#	・食洗器に貼ったカステリシールを目印に探す
+#	・カステリマークの横にあるLEDの輝度（というか赤ドット）を数える
+#	・カステリ（開閉）の２回しかマッチングしない
+#	・１秒以内
+#
+# V4 ３ボタンを検出
+#	・カメラ性能が悪すぎて、カステリマークが判別できない（ほぼ単なる丸）
+#	・３ボタン並び（電源・モード・予約）を検出して位置を確定し、LEDを数える
+#	・１秒以内
+#
+#	TODO: LEDの赤要素を数えようとしているが、赤外線カメラではもともと無理な気がする
+#			輝度を使ってみてはどうか（明るいドット数を数える）
+
+
+#
 # ■履歴
 # 2024/11/27 新規作成
 
@@ -26,21 +58,12 @@ import globals as g # グローバル変数・関数
 # --------------------- washer内の定数 ---------------------
 # テンプレート写真
 
-# CASTELLIマークでOPEN/CLOSEを判定する
-CASTELLI_LIGHT_OPEN  = "./pattern/castelli_light_open_small.png"
-CASTELLI_LIGHT_CLOSE = "./pattern/castelli_light_close_small.png"
-CASTELLI_DARK_OPEN  = "./pattern/castelli_dark_open2_small.png"
-CASTELLI_DARK_CLOSE = "./pattern/castelli_dark_close2_small.png"
+# LED→カステリシール→３ボタン並び、と進化してきた
+TEMP_LIGHT_OPEN  = "./pattern/3buttons_light_open.png"
+TEMP_LIGHT_CLOSE = "./pattern/3buttons_light_close.png"
+TEMP_DARK_OPEN   = "./pattern/3buttons_dark_open.png"
+TEMP_DARK_CLOSE  = "./pattern/3buttons_dark_close.png"
 
-BUTTONS_LIGHT_OPEN  = "./pattern/3buttons_light_open.png"
-BUTTONS_LIGHT_CLOSE = "./pattern/3buttons_light_close.png"
-BUTTONS_DARK_OPEN   = "./pattern/3buttons_dark_open.png"
-BUTTONS_DARK_CLOSE  = "./pattern/3buttons_dark_close.png"
-
-TEMP_LIGHT_OPEN  = BUTTONS_LIGHT_OPEN
-TEMP_LIGHT_CLOSE = BUTTONS_LIGHT_CLOSE
-TEMP_DARK_OPEN   = BUTTONS_DARK_OPEN
-TEMP_DARK_CLOSE  = BUTTONS_DARK_CLOSE
 
 # テンプレートとマッチングの最低閾値
 TEMP_DAY_MATCHING_THRESHOLD 	= 0.65	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
@@ -50,7 +73,8 @@ TEMP_TIMER_LED_THRESHOLD = 50	# LED点灯とみなす輝度(暗い＝５０、�
 
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
-DOOR_OPEN_CHECK_TIMER_s = 5*60
+# でも、本当に食器を入れる時も邪魔なので、あまり長く開けていないかもしれない
+DOOR_OPEN_CHECK_TIMER_s = 2*60
 
 # 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 1280 #2592
@@ -83,7 +107,26 @@ picam = 1
 # ここからの経過時間がDOOR_OPEN_CHECK_TIMER_sを超えると、開放とみなす
 last_closed_door_time = datetime.datetime.now()
 
+# デバッグ用
+newest_matching_image = ""
+save_matching_flag = False
+
 # ------------------------------------------------------------------------------
+def init_washer():
+	"""
+	アプリ起動時に、wwのinit_bootから１回だけ呼ばれる初期化処理
+	テンプレートの準備、カメラデバイスの初期化など
+	"""
+	global temp_dark_close, temp_dark_open
+	global temp_light_close, temp_light_open
+
+	temp_light_close = _read_template(TEMP_LIGHT_CLOSE)
+	temp_light_open  = _read_template(TEMP_LIGHT_OPEN)
+	temp_dark_close  = _read_template(TEMP_DARK_CLOSE)
+	temp_dark_open   = _read_template(TEMP_DARK_OPEN )
+
+	init_camera()
+
 def init_camera():
 	global picam
 
@@ -94,21 +137,9 @@ def init_camera():
 			main={"format": 'XRGB8888', "size": (CAPTURE_WIDTH, CAPTURE_HEIGHT)}))
 	picam.start()
 
-
 def _read_template(fname:str):
 	a = cv2.imread(fname)
 	return cv2.cvtColor(a, cv2.COLOR_RGB2GRAY)
-
-def init_washer():
-	global temp_dark_close, temp_dark_open
-	global temp_light_close, temp_light_open
-
-	temp_light_close = _read_template(TEMP_LIGHT_CLOSE)
-	temp_light_open  = _read_template(TEMP_LIGHT_OPEN)
-	temp_dark_close  = _read_template(TEMP_DARK_CLOSE)
-	temp_dark_open   = _read_template(TEMP_DARK_OPEN )
-
-	init_camera()
 
 # ------------------------------------------------------------------------------
 def _capture_washer( full:bool )->np.ndarray:
@@ -120,7 +151,6 @@ def _capture_washer( full:bool )->np.ndarray:
 	・左右の真ん中、上下の下半分にトリミングする
 	"""
 
-	### TODO: もしかするとカメラ初期化は１回だけにした方がよいかも！！！
 	global picam
 
 	# 撮影
@@ -144,8 +174,6 @@ def _capture_washer( full:bool )->np.ndarray:
 	#cv2.imwrite( "shot.png", img )
 	return img
 
-newest_matching_image = ""
-save_matching_flag = False
 
 # ------------------------------------------------------------------------------
 def _monitor_washer_now()->Tuple[int, int]:
@@ -233,6 +261,12 @@ def _monitor_washer_now()->Tuple[int, int]:
 	c2 = box2.T[2].flatten().mean()
 	c4 = box4.T[2].flatten().mean()
 
+	# TODO: 今はRだけの平均値処理をしている模様
+	# TODO: いっそ、全画素取入れか重み付け（R+G+B）
+	# TODO: https://edaha-room.com/python_cv2_blightness/2935/
+
+
+
 	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f}")
 
 	# 半分デバッグ用だけど、サソリ・4H・2Hの各認識フレームを描く
@@ -240,16 +274,22 @@ def _monitor_washer_now()->Tuple[int, int]:
 	cv2.rectangle(img, timer2h_TL, timer2h_BR, color=(255,255,0), thickness=1)
 	cv2.rectangle(img, timer4h_TL, timer4h_BR, color=(255,255,0), thickness=1)
 	cv2.rectangle(img, tl, br, color=(255,255,255), thickness=1)
+
+	# LCDにデバッグ表示するためにコピー
+	# TODO: ここから直接書き込みできないのか？
 	newest_matching_image = img.copy()
+
+	# デバッグ用に、検出結果画像を保存
 	if save_matching_flag:
 		save_matching_flag = False
 		cv2.imwrite(f"result_CL{corr_cl:.2f}_OP{corr_op:.2f}.png", img)
 
-	# とんでもない位置にサソリをご認識した場合、その後のT2、T4ともめちゃめちゃになるので、unknownにする
+	# メインのOPEN/CLOSE検出が微妙にずれると、T2・T4がともにサソリマークを拾って高得点になることがある
+	# T2・T4がそろって高得点の場合はエラーとする（LEDだけUnknown）
 	if c2>TEMP_TIMER_LED_THRESHOLD and c4>TEMP_TIMER_LED_THRESHOLD:
 		cv2.imwrite("c2c4error.png", img)
 		g.talk("taima- ninsiki era-desu.desu.")
-		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
+		return door, WASHER_STATUS_UNKNOWN
 
 	# いよいよLED判定
 	# まれにc2,c4とも巨大になる時があり、片方だけ閾値を超えた際に発動
@@ -262,22 +302,24 @@ def _monitor_washer_now()->Tuple[int, int]:
 
 
 # ------------------------------------------------------------------------------
+# door/timer/dishesの値→名前変換
+# TODO: 辞書そのものじゃん。直せよ・・・。
 def _door(door:int)->str:
 	if   door==WASHER_DOOR_CLOSE: return "CLOSE"
 	elif door==WASHER_DOOR_OPEN : return "OPEN"
-	else: return "--"
+	else: return "N/A"
 
 def _timer(timer:int)->str:
 	if   timer==WASHER_TIMER_OFF: return "OFF"
 	elif timer==WASHER_TIMER_2H : return "2H"
 	elif timer==WASHER_TIMER_4H : return "4H"
-	else: return "--"
+	else: return "N/A"
 
 def _dishes(dishes:int)->str:
 	if   dishes==WASHER_DISHES_EMPTY : return "EMPTY"
 	elif dishes==WASHER_DISHES_DIRTY : return "DIRTY"
 	elif dishes==WASHER_DISHES_WASHED: return "WASHED"
-	else: return "--"
+	else: return "N/A"
 
 def door_status()->str:
 	return _door(washer_door)
@@ -318,6 +360,7 @@ def monitor_washer()->None:
 	door, timer = _monitor_washer_now()
 
 	# 状態不明なら諦める（ガード節）
+	# TIMER(LED)の状態不明は通過しうるので、のちにチェックすること
 	if door==WASHER_STATUS_UNKNOWN: return
 
 
@@ -370,32 +413,8 @@ def monitor_washer()->None:
 				start_alert_washed()
 
 
-	#if old_washer_door != door:
-	#	# 1.ドアが開いている（食器を入れている or 出している）
-	#	if door==WASHER_DOOR_OPEN:
-	#		# 洗浄済みの食器を出すとき
-	#		if washer_dishes==WASHER_DISHES_WASHED:
-	#			g.log("WASHER", "食器は洗浄済みですよ")
-	#			g.talk("sho'kkiwa senjo'uzumi/de'suyo.")
-	#			start_alert_washed()
-	#			washer_dishes = WASHER_DISHES_EMPTY	# 食器「空」にする
-
-	#		else:
-	#			g.log("WASHER", "ドアが開きました")
-	#			g.talk("doa'ga hirakimasita")
-
-	#			# 食器ステータスを「汚れ」に
-	#			washer_dishes = WASHER_DISHES_DIRTY
-	#			# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
-	#			schedule.every(30).minutes.do(check_washer).tag("check_washer")
-
-	#	# 2.ドアが閉まっている（食器には直接の変化なし）
-	#	if door==WASHER_DOOR_CLOSE:
-	#		g.log("WASHER", "ドアがしまりました")
-	#		g.talk("do'aga simattayo")
-
 	# タイマ状態の変化検出
-	if old_washer_timer!=timer:
+	if timer!=WASHER_STATUS_UNKNOWN and old_washer_timer!=timer:
 		# 3.タイマーがオフ（直前までタイマONなら洗浄開始のハズ！！）
 		if timer==WASHER_TIMER_OFF:
 			g.log("WASHER", "洗浄が始まりました")
