@@ -233,16 +233,30 @@ def draw_normal()->None:
 #	g.draw_main.text( (120, 125+15), "昼", font=normal_font20, fill="black" )
 
 
-# ------------------------------------------------------------------------------
+STATUS_UPPER_AREA			= (0,	0,		MAIN_WIDTH, 159		)
+STATUS_LOWER_AREA			= (0,	165,	MAIN_WIDTH, MAIN_HEIGHT)
 
+
+# ------------------------------------------------------------------------------
+def draw_washer_status()->None:
+	"""【モード３】パターンマッチングの状況を詳細表示	
+	"""
+
+	g.log("DRAW_WASHER_STATUS", "begin")
+
+	# 各領域を作る
+#	g.draw_main.rectangle(MAIN_UPPER_AREA, 			fill=(150,150,255))
+	g.draw_main.rectangle(MAIN_LOWER_AREA,			fill=(221,255,220))
+
+# ------------------------------------------------------------------------------
 (_dev_print_h, _dev_print_y) = (18,40)
 
 def _print_one(label:str, msg:str):
 	global _dev_print_y
 
-	g.draw_main.text((0, _dev_print_y), f"{label:6s}:{msg}", font=info_content_font, fill="white")
+	g.draw_main.text((0, _dev_print_y), f"{label:6s}:{msg}", font=normal_font30, fill="red")
 #	g.draw_main.text( (0, _dev_print_y), "{:12}: {}".format(label,msg), font=info_content_font, fill="black" )
-	_dev_print_y += _dev_print_h
+	_dev_print_y += _dev_print_h+5
 
 def display_device_info():
 	"""【モード4】デバイス情報表示
@@ -250,7 +264,7 @@ def display_device_info():
 	g.log("draw_device", "begin")
 
 	global _dev_print_y
-	_dev_print_y = 100
+	_dev_print_y = 150
 
 	try:
 		ip = ipget.ipget()

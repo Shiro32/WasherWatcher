@@ -156,15 +156,7 @@ def _capture_washer( full_size:bool=False )->np.ndarray:
 
 	# 撮影
 	img = picam.capture_array()
-
-	# カラーモードの調整なのかな
-	chs = 1 if len(img.shape)==2 else img.shape[2]
-	if chs==1:
-		img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-		print("CHS1")
-	if chs==4:
-		img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-		print("CHS4")
+	img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
 
 	if not full_size:
 		# トリミング
@@ -178,7 +170,7 @@ def _capture_washer( full_size:bool=False )->np.ndarray:
 	return img
 
 
-MATCHING_FREQ = 3
+MATCHING_FREQ = 4
 
 # ------------------------------------------------------------------------------
 def _matching_washer()->Tuple[int, int]:
@@ -216,6 +208,8 @@ def _matching_washer()->Tuple[int, int]:
 		_matching_washer.timer_counter = 0
 		_matching_washer.prev_timer = timer
 
+	g.log("MATCHING",
+	   f"DOOR:{_door(_matching_washer.current_door)}({_matching_washer.door_counter}) / TIMER:{_timer(_matching_washer.current_timer)}({_matching_washer.timer_counter})")
 	return _matching_washer.current_door, _matching_washer.current_timer
 
 # _matching_washerのstatic変数たち
