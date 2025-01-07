@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from picamera2 import Picamera2
-
+import sys
 
 # 撮影写真のトリミング領域（実際のパターンマッチングに使うのは狭い領域なので）
 WASHER_CAP_TRIM_TOP		= 1/6*3
@@ -58,9 +58,8 @@ def _capture_washer()->np.ndarray:
 	return img
 
 
-def match(temp_file):
+def match(img, temp_file):
 
-	img = _capture_washer()
 	tpl = cv2.imread( temp_file )
 
 	print("read complete")
@@ -97,9 +96,10 @@ def match(temp_file):
 
 	cv2.imwrite("result.png", dst)
 
+if( len(sys.argv)==2 ):
+	img = cv2.imread( sys.argv[1] )
+else:
+	img = _capture_washer()
 
-print("open")
-match("./pattern/3buttons_dark_open.png" )
-#print("close")
-#match( "./pattern/castelli_light_close_small.png" )
+	match(img, "../pattern/3buttons_dark_open.png")
 

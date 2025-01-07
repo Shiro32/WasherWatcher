@@ -69,6 +69,7 @@ TEMP_DARK_CLOSE  = "./pattern/3buttons_dark_close.png"
 TEMP_DAY_MATCHING_THRESHOLD 	= 0.65	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 TEMP_NIGHT_MATCHING_THRESHOLD	= 0.75	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 
+TEMP_TIMER_LED_RATIO_THREDHOLF	= 1.50
 TEMP_TIMER_LED_THRESHOLD = 50	# LED点灯とみなす輝度(暗い＝５０、明るい＝６０)
 
 # 食洗器ドアが開放中と認識する秒数
@@ -255,19 +256,23 @@ def _monitor_washer_now()->Tuple[int, int]:
 		tl = maxLoc_op[0], maxLoc_op[1]
 		br = maxLoc_op[0]+temp_light_open.shape[1], maxLoc_op[1]+temp_light_open.shape[0]
 
-	# 2Hと4HタイマーLEDの領域、赤の重さを算出
+	#タイマ2Hと4HそれぞれのLED位置が確定
 	box2 = img[ timer2h_TL[1]:timer2h_BR[1], timer2h_TL[0]:timer2h_BR[0] ]
 	box4 = img[ timer4h_TL[1]:timer4h_BR[1], timer4h_TL[0]:timer4h_BR[0] ]
-	c2 = box2.T[2].flatten().mean()
-	c4 = box4.T[2].flatten().mean()
 
-	# TODO: 今はRだけの平均値処理をしている模様
-	# TODO: いっそ、全画素取入れか重み付け（R+G+B）
+	# 2Hと4HタイマーLEDの領域、赤の重さを算出
 	# TODO: https://edaha-room.com/python_cv2_blightness/2935/
 
+	# 方法１：R層の平均値
+	# Tで向きを変える→２行目（＝GBR）→１次元化→平均値
+	c2 = box2.T[2].flatten().mean()
+	c4 = box4.T[2].flatten().mean()
+	cr = max(c2, c4) / min(c2, c4)
+	# 方法２：全画素平均値（黒よりは明るいだろう）
+	#c2 = box2.T[0].flatten().mean() + box2.T[1].flatten().mean() + box2.T[2].flatten().mean()	
+	#c4 = box4.T[0].flatten().mean() + box4.T[1].flatten().mean() + box4.T[2].flatten().mean()	
 
-
-	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f}")
+	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f} / TR:{cr:1.2f}")
 
 	# 半分デバッグ用だけど、サソリ・4H・2Hの各認識フレームを描く
 	# メインディスプレイに出せるように、グローバルにも入れておく
@@ -286,16 +291,17 @@ def _monitor_washer_now()->Tuple[int, int]:
 
 	# メインのOPEN/CLOSE検出が微妙にずれると、T2・T4がともにサソリマークを拾って高得点になることがある
 	# T2・T4がそろって高得点の場合はエラーとする（LEDだけUnknown）
-	if c2>TEMP_TIMER_LED_THRESHOLD and c4>TEMP_TIMER_LED_THRESHOLD:
-		cv2.imwrite("c2c4error.png", img)
-		g.talk("taima- ninsiki era-desu.desu.")
-		return door, WASHER_STATUS_UNKNOWN
+	#if c2>TEMP_TIMER_LED_THRESHOLD and c4>TEMP_TIMER_LED_THRESHOLD:
+	#	cv2.imwrite("c2c4error.png", img)
+	#	g.talk("taima- ninsiki era-desu.desu.")
+	#	return door, WASHER_STATUS_UNKNOWN
 
 	# いよいよLED判定
-	# まれにc2,c4とも巨大になる時があり、片方だけ閾値を超えた際に発動
-	if   c2>TEMP_TIMER_LED_THRESHOLD and c4<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_2H
-	elif c4>TEMP_TIMER_LED_THRESHOLD and c2<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_4H
-	else							 : timer = WASHER_TIMER_OFF
+	# 2Hと4Hの比が小さいときはNG(違うものをとらえて両方とも発火の可能性）
+	# そもそも値が閾値以下ならNG
+	if cr > TEMP_TIMER_LED_RATIO_THREDHOLF and max(c2,c4) > TEMP_TIMER_LED_THRESHOLD:
+		timer = WASHER_TIMER_2H if c2>c4 else WASHER_TIMER_4H
+	else: timer = WASHER_TIMER_OFF
 
 	g.log("WASHER", f"一致検出（{_door(door)}/{_timer(timer)}）")
 	return door, timer
