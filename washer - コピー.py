@@ -161,10 +161,8 @@ def _capture_washer( full_size:bool=False )->np.ndarray:
 	chs = 1 if len(img.shape)==2 else img.shape[2]
 	if chs==1:
 		img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-		print("CHS1")
 	if chs==4:
 		img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-		print("CHS4")
 
 	if not full_size:
 		# トリミング
@@ -204,19 +202,17 @@ def _matching_washer()->Tuple[int, int]:
 	# ドア判定の頻度監視
 	if door == _matching_washer.prev_door:
 		_matching_washer.door_counter += 1
-		if _matching_washer.door_counter >= MATCHING_FREQ:	_matching_washer.current_door = door
+		if _matching_washer.door_counter >= MATCHING_FREQ:	_current_door = door
 	else:
 		_matching_washer.door_counter = 0
 		_matching_washer.prev_door = door
 
 	if timer == _matching_washer.prev_timer:
 		_matching_washer.timer_counter += 1
-		if _matching_washer.timer_counter >= MATCHING_FREQ: _matching_washer.current_timer = timer
+		if _matching_washer.timer_counter >= MATCHING_FREQ: _current_timer = timer
 	else:
 		_matching_washer.timer_counter = 0
 		_matching_washer.prev_timer = timer
-
-	return _matching_washer.current_door, _matching_washer.current_timer
 
 # _matching_washerのstatic変数たち
 _matching_washer.current_door	= WASHER_STATUS_UNKNOWN
@@ -309,11 +305,8 @@ def _matching_one_washer()->Tuple[int, int]:
 		tl = maxLoc_op[0], maxLoc_op[1]
 		br = maxLoc_op[0]+temp_light_open.shape[1], maxLoc_op[1]+temp_light_open.shape[0]
 
+<<<<<<< HEAD
 	#タイマ2Hと4HそれぞれのLED位置が確定
-	# 2Hと4HタイマーLEDの領域、赤の重さを算出
-	# TODO: 今はRだけの平均値処理をしている模様
-	# TODO: いっそ、全画素取入れか重み付け（R+G+B）
-	# TODO: https://edaha-room.com/python_cv2_blightness/2935/
 	box2 = img[ timer2h_TL[1]:timer2h_BR[1], timer2h_TL[0]:timer2h_BR[0] ]
 	box4 = img[ timer4h_TL[1]:timer4h_BR[1], timer4h_TL[0]:timer4h_BR[0] ]
 
@@ -325,12 +318,22 @@ def _matching_one_washer()->Tuple[int, int]:
 	c2 = box2.T[2].flatten().mean()
 	c4 = box4.T[2].flatten().mean()
 	cr = max(c2, c4) / min(c2, c4)
-
 	# 方法２：全画素平均値（黒よりは明るいだろう）
 	#c2 = box2.T[0].flatten().mean() + box2.T[1].flatten().mean() + box2.T[2].flatten().mean()	
 	#c4 = box4.T[0].flatten().mean() + box4.T[1].flatten().mean() + box4.T[2].flatten().mean()	
 
+	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f} / TR:{cr:1.2f}")
+=======
+	# 2Hと4HタイマーLEDの領域、赤の重さを算出
+	# TODO: 今はRだけの平均値処理をしている模様
+	# TODO: いっそ、全画素取入れか重み付け（R+G+B）
+	# TODO: https://edaha-room.com/python_cv2_blightness/2935/
+	box2 = img[ timer2h_TL[1]:timer2h_BR[1], timer2h_TL[0]:timer2h_BR[0] ]
+	box4 = img[ timer4h_TL[1]:timer4h_BR[1], timer4h_TL[0]:timer4h_BR[0] ]
+	c2 = box2.T[2].flatten().mean()
+	c4 = box4.T[2].flatten().mean()
 	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f}")
+>>>>>>> fc835ed7cdb27bfc781f3263f44cb5c613f0eb6d
 
 	# 半分デバッグ用だけど、３ボタン・4H・2Hの各認識フレームを描く
 	# メインディスプレイに出せるように、グローバルにも入れておく
@@ -345,19 +348,31 @@ def _matching_one_washer()->Tuple[int, int]:
 		save_matching_flag = False
 		cv2.imwrite(f"result_CL{corr_cl:.2f}_OP{corr_op:.2f}.png", img)
 
+<<<<<<< HEAD
+	# メインのOPEN/CLOSE検出が微妙にずれると、T2・T4がともにサソリマークを拾って高得点になることがある
+	# T2・T4がそろって高得点の場合はエラーとする（LEDだけUnknown）
+	#if c2>TEMP_TIMER_LED_THRESHOLD and c4>TEMP_TIMER_LED_THRESHOLD:
+	#	cv2.imwrite("c2c4error.png", img)
+	#	g.talk("taima- ninsiki era-desu.desu.")
+	#	return door, WASHER_STATUS_UNKNOWN
 
-	# ようやくLED判定
-	# ①高得点領域がある
-	if max(c2,c4) > TEMP_TIMER_LED_THRESHOLD:
-		if cr>TEMP_TIMER_LED_RATIO_THREDHOLF:
-			# どちらかだけが高得点
-			timer = WASHER_TIMER_2H if c2>c4 else WASHER_TIMER_4H
-		else:
-			# 両方が高得点はエラー
-			timer = WASHER_STATUS_UNKNOWN
-			g.log("WASHER", "C2/C4ともに高得点エラー")
-	
-	# ②高得点領域が無い
+	# いよいよLED判定
+	# 2Hと4Hの比が小さいときはNG(違うものをとらえて両方とも発火の可能性）
+	# そもそも値が閾値以下ならNG
+	if cr > TEMP_TIMER_LED_RATIO_THREDHOLF and max(c2,c4) > TEMP_TIMER_LED_THRESHOLD:
+		timer = WASHER_TIMER_2H if c2>c4 else WASHER_TIMER_4H
+=======
+	# いよいよLED判定
+	# 片方だけ閾値を超えた際に判定する
+	if c2>TEMP_TIMER_LED_THRESHOLD and c4>TEMP_TIMER_LED_THRESHOLD:
+		# メインのOPEN/CLOSE検出が微妙にずれると、T2・T4がともにサソリマークを拾って高得点になることがある
+		cv2.imwrite("c2c4error.png", img)
+		g.talk("taima- ninsiki era-desu.desu.")
+		timer = WASHER_STATUS_UNKNOWN
+
+	elif c2>TEMP_TIMER_LED_THRESHOLD and c4<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_2H
+	elif c4>TEMP_TIMER_LED_THRESHOLD and c2<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_4H
+>>>>>>> fc835ed7cdb27bfc781f3263f44cb5c613f0eb6d
 	else: timer = WASHER_TIMER_OFF
 
 	g.log("WASHER", f"一致検出（{_door(door)}/{_timer(timer)}）")
