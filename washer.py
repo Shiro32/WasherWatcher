@@ -143,10 +143,10 @@ def _read_template(fname:str):
 	return cv2.cvtColor(a, cv2.COLOR_RGB2GRAY)
 
 # ------------------------------------------------------------------------------
-def _capture_washer( full:bool )->np.ndarray:
+def _capture_washer( full_size:bool=False )->np.ndarray:
 	"""
 	カメラモジュールで食洗器を撮影する
-	（戻り値） トリミング加工された写真（np.ndarray）
+	（戻り値） トリミング加工された写真（np.ndarray、BGRカラー）
 
 	・フルサイズで撮影する
 	・左右の真ん中、上下の下半分にトリミングする
@@ -161,10 +161,12 @@ def _capture_washer( full:bool )->np.ndarray:
 	chs = 1 if len(img.shape)==2 else img.shape[2]
 	if chs==1:
 		img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+		print("CHS1")
 	if chs==4:
 		img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+		print("CHS4")
 
-	if not full:
+	if not full_size:
 		# トリミング
 		w = img.shape[1]
 		h = img.shape[0]
@@ -176,33 +178,81 @@ def _capture_washer( full:bool )->np.ndarray:
 	return img
 
 
+MATCHING_FREQ = 3
+
 # ------------------------------------------------------------------------------
-def _monitor_washer_now()->Tuple[int, int]:
+def _matching_washer()->Tuple[int, int]:
 	"""
-	食洗器を撮影して、現在の状況を確認する
-	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
+	複数回のパターンマッチングの履歴により、現在のDOORとTIMERを判定する
+	下請けとして_matching_one_washerを呼び出す
+	本来は、_matching_one_washerの結果をそのまま使えばよい（従来はそうしていた）が、
+	ちょいちょいとエラーが起きるので、複数回続いた場合のみ、状態変化するようにする
+
+	メインルーチン（schedule)
+	monitor_washer			→ 過去の状態も踏まえ、DOOR/TIMER/DISHESを決める
+	_matching_washer		→ one_washerの認識エラー対策で、頻度監視する
+	_matching_one_washer	→ パターンマッチングでDOOR/TIMERを判定する
+	_capture_washer			→ キャプチャーする
 
 	戻り値：(int x, int y)
 	　x : ドアの状態（open/close）
 	　y : タイマの状態（off/2h/4h）
 	"""
-	global newest_matching_image, save_matching_flag
 
+	door, timer = _matching_one_washer()
+
+	# ドア判定の頻度監視
+	if door == _matching_washer.prev_door:
+		_matching_washer.door_counter += 1
+		if _matching_washer.door_counter >= MATCHING_FREQ:	_current_door = door
+	else:
+		_matching_washer.door_counter = 0
+		_matching_washer.prev_door = door
+
+	if timer == _matching_washer.prev_timer:
+		_matching_washer.timer_counter += 1
+		if _matching_washer.timer_counter >= MATCHING_FREQ: _current_timer = timer
+	else:
+		_matching_washer.timer_counter = 0
+		_matching_washer.prev_timer = timer
+
+# _matching_washerのstatic変数たち
+_matching_washer.current_door	= WASHER_STATUS_UNKNOWN
+_matching_washer.current_timer	= WASHER_STATUS_UNKNOWN
+_matching_washer.prev_door 		= WASHER_STATUS_UNKNOWN
+_matching_washer.prev_timer 	= WASHER_STATUS_UNKNOWN
+_matching_washer.door_counter	= 0
+_matching_washer.timer_counter	= 0
+
+
+# ------------------------------------------------------------------------------
+def _matching_one_washer()->Tuple[int, int]:
+	"""
+	食洗器を撮影して、パターンマッチング（OpenCV）により、現在のDOORとTIMERを判定する
+	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
+		
+	戻り値：(int x, int y)
+	　x : ドアの状態（open/close）
+	　y : タイマの状態（off/2h/4h）
+	"""
+	global newest_matching_image, save_matching_flag
 	g.log( "WASHER","食洗器チェック開始")
 
-	# 写真を撮影
-	img   = _capture_washer(full=False)	# カラー
+	# 食洗器の写真を撮影
+	img   = _capture_washer(full_size=False)		# カラー
 	img_g = cv2.cvtColor( img, cv2.COLOR_RGB2GRAY ) # グレー
 
-	# OPEN/CLOSEの判定
-	# 明るさに応じてOPEN/CLOSEの両方の相関係数を出す
 
-	# どうせグレー化して比較するなら、DARKで良くない？
+	# ----------------------------------------------------------
+	# まず、ドアの開閉状態（OPEN/CLOSE）をパターンマッチングで判定
+	# OPEN/CLOSEの両方の相関係数を出して比較
+
+	# TODO: どうせグレー化して比較するなら、DARKで良くない？
 	if pi.read(CDS_PIN)==pigpio.HIGH:
 		# 明るい場合
 		cds="明るい"
 		result_cl = cv2.matchTemplate(img_g, temp_light_close, cv2.TM_CCOEFF_NORMED)
-		result_op = cv2.matchTemplate(img_g, temp_light_open, cv2.TM_CCOEFF_NORMED)
+		result_op = cv2.matchTemplate(img_g, temp_light_open , cv2.TM_CCOEFF_NORMED)
 		thr = TEMP_DAY_MATCHING_THRESHOLD
 	else:
 		# 暗い場合
@@ -215,21 +265,22 @@ def _monitor_washer_now()->Tuple[int, int]:
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
 	g.log( "WASHER", f"CDS:{cds} / CL:{corr_cl:.2f} / OP:{corr_op:.2f}" )
 	
-	# 開きか、閉めか、どちらかを判別できないときは諦める
-	# （ケース１）開閉どちらも閾値を下回る場合
+	# OPEN/CLOSEのどちらか判別できないときは諦める
+	# （ケース１）開閉どちらも閾値を下回る場合（人がカメラを邪魔している等）
 	if max(corr_cl, corr_op) < thr:
 		g.log("WASHER", "判定不能（相関が低すぎる）")
-		#g.talk("jama'/de'su.")
-		#g.talk("mie'ngana")
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
-	# （ケース２）開閉の差が小さすぎる場合
+	# （ケース２）開閉の差が小さすぎる場合（不鮮明な写真？）
 	if abs(corr_cl - corr_op) < 0.1:
 		g.log("WASHER", "判定不能（開閉に差がない）")
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
+
+	# ----------------------------------------------------------
 	# タイマーLED判定に移る	
-	# ドアの開閉に合わせて、検査すべきタイマーLEDの領域を微調整
+	# ドアの開閉判定に合わせて、検査すべきタイマーLEDの領域を微調整
+
 	if corr_cl>=corr_op:
 		# CLOSE状態認識
 		door = WASHER_DOOR_CLOSE
@@ -257,6 +308,10 @@ def _monitor_washer_now()->Tuple[int, int]:
 		br = maxLoc_op[0]+temp_light_open.shape[1], maxLoc_op[1]+temp_light_open.shape[0]
 
 	#タイマ2Hと4HそれぞれのLED位置が確定
+	# 2Hと4HタイマーLEDの領域、赤の重さを算出
+	# TODO: 今はRだけの平均値処理をしている模様
+	# TODO: いっそ、全画素取入れか重み付け（R+G+B）
+	# TODO: https://edaha-room.com/python_cv2_blightness/2935/
 	box2 = img[ timer2h_TL[1]:timer2h_BR[1], timer2h_TL[0]:timer2h_BR[0] ]
 	box4 = img[ timer4h_TL[1]:timer4h_BR[1], timer4h_TL[0]:timer4h_BR[0] ]
 
@@ -267,40 +322,31 @@ def _monitor_washer_now()->Tuple[int, int]:
 	# Tで向きを変える→２行目（＝GBR）→１次元化→平均値
 	c2 = box2.T[2].flatten().mean()
 	c4 = box4.T[2].flatten().mean()
-	cr = max(c2, c4) / min(c2, c4)
-	# 方法２：全画素平均値（黒よりは明るいだろう）
-	#c2 = box2.T[0].flatten().mean() + box2.T[1].flatten().mean() + box2.T[2].flatten().mean()	
-	#c4 = box4.T[0].flatten().mean() + box4.T[1].flatten().mean() + box4.T[2].flatten().mean()	
+	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f}")
 
-	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f} / TR:{cr:1.2f}")
-
-	# 半分デバッグ用だけど、サソリ・4H・2Hの各認識フレームを描く
+	# 半分デバッグ用だけど、３ボタン・4H・2Hの各認識フレームを描く
 	# メインディスプレイに出せるように、グローバルにも入れておく
 	cv2.rectangle(img, timer2h_TL, timer2h_BR, color=(255,255,0), thickness=1)
 	cv2.rectangle(img, timer4h_TL, timer4h_BR, color=(255,255,0), thickness=1)
 	cv2.rectangle(img, tl, br, color=(255,255,255), thickness=1)
-
-	# LCDにデバッグ表示するためにコピー
-	# TODO: ここから直接書き込みできないのか？
+	# TODO: 直接ここで描画できないのか・・・？
 	newest_matching_image = img.copy()
 
-	# デバッグ用に、検出結果画像を保存
+	# デバッグ用に、検出結果画像を保存（1回だけ保存）
 	if save_matching_flag:
 		save_matching_flag = False
 		cv2.imwrite(f"result_CL{corr_cl:.2f}_OP{corr_op:.2f}.png", img)
 
-	# メインのOPEN/CLOSE検出が微妙にずれると、T2・T4がともにサソリマークを拾って高得点になることがある
-	# T2・T4がそろって高得点の場合はエラーとする（LEDだけUnknown）
-	#if c2>TEMP_TIMER_LED_THRESHOLD and c4>TEMP_TIMER_LED_THRESHOLD:
-	#	cv2.imwrite("c2c4error.png", img)
-	#	g.talk("taima- ninsiki era-desu.desu.")
-	#	return door, WASHER_STATUS_UNKNOWN
-
 	# いよいよLED判定
-	# 2Hと4Hの比が小さいときはNG(違うものをとらえて両方とも発火の可能性）
-	# そもそも値が閾値以下ならNG
-	if cr > TEMP_TIMER_LED_RATIO_THREDHOLF and max(c2,c4) > TEMP_TIMER_LED_THRESHOLD:
-		timer = WASHER_TIMER_2H if c2>c4 else WASHER_TIMER_4H
+	# 片方だけ閾値を超えた際に判定する
+	if c2>TEMP_TIMER_LED_THRESHOLD and c4>TEMP_TIMER_LED_THRESHOLD:
+		# メインのOPEN/CLOSE検出が微妙にずれると、T2・T4がともにサソリマークを拾って高得点になることがある
+		cv2.imwrite("c2c4error.png", img)
+		g.talk("taima- ninsiki era-desu.desu.")
+		timer = WASHER_STATUS_UNKNOWN
+
+	elif c2>TEMP_TIMER_LED_THRESHOLD and c4<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_2H
+	elif c4>TEMP_TIMER_LED_THRESHOLD and c2<TEMP_TIMER_LED_THRESHOLD: timer = WASHER_TIMER_4H
 	else: timer = WASHER_TIMER_OFF
 
 	g.log("WASHER", f"一致検出（{_door(door)}/{_timer(timer)}）")
@@ -345,7 +391,7 @@ def monitor_washer()->None:
 	食洗器を撮影して、現在の状況を確認する
 	数十秒ごとにタイマーでメインルーチンからコールされる
 
-	・下請け（_monitor_washer_now）で現在の状態（ドア・タイマ）を調べる
+	・下請け（_matching_washer）で現在の状態（ドア・タイマ）を調べる
 	・状態がunknownなら終了
 	・ドア開→汚れ食器あり
 	・ドア閉→なにもしない
@@ -363,7 +409,7 @@ def monitor_washer()->None:
 	old_washer_timer	= washer_timer
 
 	# １ショット撮影してドア・タイマの状態を獲得
-	door, timer = _monitor_washer_now()
+	door, timer = _matching_washer()
 
 	# 状態不明なら諦める（ガード節）
 	# TIMER(LED)の状態不明は通過しうるので、のちにチェックすること
