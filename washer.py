@@ -69,8 +69,8 @@ TEMP_DARK_CLOSE  = "./pattern/3buttons_dark_close.png"
 TEMP_DAY_MATCHING_THRESHOLD 	= 0.65	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 TEMP_NIGHT_MATCHING_THRESHOLD	= 0.75	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 
-TEMP_TIMER_LED_RATIO_THREDHOLF	= 1.50
-TEMP_TIMER_LED_THRESHOLD = 50	# LED点灯とみなす輝度(暗い＝５０、明るい＝６０)
+TEMP_TIMER_LED_RATIO_THREDHOLF	= 1.20
+TEMP_TIMER_LED_THRESHOLD = 55	# LED点灯とみなす輝度(暗い＝５０、明るい＝６０)
 
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
@@ -98,8 +98,8 @@ WASHER_CAP_TRIM_RIGHT	= 1/6*4
 # 食洗器の状態（状態を保持し続けるためにグローバル化）
 # 暗くなる or 子機から問われた時はこれをもとに回答
 washer_dishes	= WASHER_DISHES_EMPTY				# 汚れた食器が入っている（True）
-washer_door		= WASHER_DOOR_CLOSE
-washer_timer	= WASHER_TIMER_OFF
+washer_door		= WASHER_STATUS_UNKNOWN
+washer_timer	= WASHER_STATUS_UNKNOWN
 
 # カメラデバイスインスタンス
 picam = 1
@@ -281,10 +281,10 @@ def _matching_one_washer()->Tuple[int, int]:
 		# CLOSE状態認識
 		door = WASHER_DOOR_CLOSE
 		# 2H
-		timer2h_TL = maxLoc_cl[0]+22, maxLoc_cl[1]+14
+		timer2h_TL = maxLoc_cl[0]+23, maxLoc_cl[1]+14
 		timer2h_BR = timer2h_TL[0]+6, timer2h_TL[1]+6
 		# 4H
-		timer4h_TL = maxLoc_cl[0]+22, maxLoc_cl[1]+8
+		timer4h_TL = maxLoc_cl[0]+23, maxLoc_cl[1]+8
 		timer4h_BR = timer4h_TL[0]+6, timer4h_TL[1]+6
 
 		tl = maxLoc_cl[0], maxLoc_cl[1]
@@ -324,7 +324,7 @@ def _matching_one_washer()->Tuple[int, int]:
 	#c2 = box2.T[0].flatten().mean() + box2.T[1].flatten().mean() + box2.T[2].flatten().mean()	
 	#c4 = box4.T[0].flatten().mean() + box4.T[1].flatten().mean() + box4.T[2].flatten().mean()	
 
-	g.log("WASHER", f"T2:{c2:.0f} / T4:{c4:.0f}")
+	g.log("WASHER", f"T2:{c2:0.0f} / T4:{c4:0.0f} / CR:{cr:1.2f}")
 
 	# 半分デバッグ用だけど、３ボタン・4H・2Hの各認識フレームを描く
 	# メインディスプレイに出せるように、グローバルにも入れておく
@@ -349,7 +349,7 @@ def _matching_one_washer()->Tuple[int, int]:
 		else:
 			# 両方が高得点はエラー
 			timer = WASHER_STATUS_UNKNOWN
-			g.log("WASHER", "C2/C4ともに高得点エラー")
+			g.log("WASHER", f"C2{c2:0.0f}/C4{c4:0.0f}ともに高得点エラー")
 	
 	# ②高得点領域が無い
 	else: timer = WASHER_TIMER_OFF
@@ -418,7 +418,10 @@ def monitor_washer()->None:
 
 	# 状態不明なら諦める（ガード節）
 	# TIMER(LED)の状態不明は通過しうるので、のちにチェックすること
-	if door==WASHER_STATUS_UNKNOWN: return
+	if door==WASHER_STATUS_UNKNOWN:
+		g.log("WASHER", "判定不能")
+		g.log("WASHER", "")
+		return
 
 
 	# 最新の状態をstatic変数に反映する
@@ -436,18 +439,21 @@ def monitor_washer()->None:
 		if old_washer_door == WASHER_DOOR_OPEN:
 			g.log("WASHER", "ドアがしまりました")
 			g.talk("do'aga simattayo")
+			if washer_timer==WASHER_TIMER_OFF:
+				g.talk("ta'ima-no/se'ttowo wasu'renaidene.")
+
 
 	# ドアが開いている
 	else:
 		# 食器は入っていない
 		if washer_dishes==WASHER_DISHES_EMPTY:
 			# 一定時間空けたなら、汚れた食器を入れたハズ
-			if (datetime.datetime.now()-last_closed_door_time).seconds > DOOR_OPEN_CHECK_TIMER_s:
+			if (datetime.datetime.now()-last_closed_door_time).seconds > DOOR_OPEN_CHECK_TIMER_s and washer_timer==WASHER_TIMER_OFF:
 				# 食器ステータスを「汚れ」に
 				washer_dishes = WASHER_DISHES_DIRTY
 				g.log("WASHER", "ドアが長時間開きました（EMPTY→DIRTY）")
-				g.talk("shokki'wo iretemasune.")
-				g.talk("ta'ima-no/se'ttowo wasu'renaide/kuda'saine-")
+				g.talk("shokki'wo irete/ma'sune.")
+				g.talk("ta'ima-no/se'ttowo wasu'rezuni.")
 
 				# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
 				schedule.every(30).minutes.do(check_washer).tag("check_washer")
@@ -456,7 +462,7 @@ def monitor_washer()->None:
 		elif washer_dishes==WASHER_DISHES_DIRTY:
 			g.log("WASHER", "ドア開放を検出（DIRTY）")
 			# 音声は開けた時の１回だけ
-			if old_washer_door == WASHER_DOOR_CLOSE:
+			if old_washer_door == WASHER_DOOR_CLOSE and washer_timer==WASHER_TIMER_OFF:
 				g.talk("ta'ima-no se'ttowo wasurezuni.")
 
 		# 洗浄済みの食器が入っている
@@ -471,7 +477,7 @@ def monitor_washer()->None:
 
 
 	# タイマ状態の変化検出
-	if timer!=WASHER_STATUS_UNKNOWN and old_washer_timer!=timer:
+	if timer!=WASHER_STATUS_UNKNOWN and old_washer_timer!=timer and old_washer_timer!=WASHER_STATUS_UNKNOWN:
 		# 3.タイマーがオフ（直前までタイマONなら洗浄開始のハズ！！）
 		if timer==WASHER_TIMER_OFF:
 			g.log("WASHER", "洗浄が始まりました")
@@ -481,6 +487,7 @@ def monitor_washer()->None:
 		if timer==WASHER_TIMER_2H or timer==WASHER_TIMER_4H:
 			g.log("WASHER","タイマーがセットされました")
 			g.talk("ta'ima-ga settosaremasita.")
+			g.talk("korede' hi'to/a'nsin desu.")
 
 	g.log("WASHER", f"食洗器チェック終了：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
 	g.log("WASHER","")
