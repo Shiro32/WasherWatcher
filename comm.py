@@ -108,10 +108,13 @@ def _receive_message_thread()->None:
 				g.log("COMM", "「DIRTY」を受信")
 			elif data=="washed":
 				washer.washer_dishes = WASHER_DISHES_WASHED
-				#g.log("COMM", "「WASHED」を受信")
+				g.log("COMM", "「WASHED」を受信")
 			elif data=="save":
 				washer.save_matching_flag = True
 				g.log("COMM", "セーブしまっせ")
+			elif data=="save2":
+				washer.save_matching_flag2 = True
+				g.log("COMM", "セーブしまっせ2")
 			elif data=="shot":
 				img = washer._capture_washer(False)
 				cv2.imwrite("shot.png", img)

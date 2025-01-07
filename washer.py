@@ -69,13 +69,16 @@ TEMP_DARK_CLOSE  = "./pattern/3buttons_dark_close.png"
 TEMP_DAY_MATCHING_THRESHOLD 	= 0.65	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 TEMP_NIGHT_MATCHING_THRESHOLD	= 0.75	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 
+MATCHING_FREQ = 3	# ノイズ対策で多頻度監視する回数
+
+
 TEMP_TIMER_LED_RATIO_THREDHOLF	= 1.20
 TEMP_TIMER_LED_THRESHOLD = 55	# LED点灯とみなす輝度(暗い＝５０、明るい＝６０)
 
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
 # でも、本当に食器を入れる時も邪魔なので、あまり長く開けていないかもしれない
-DOOR_OPEN_CHECK_TIMER_s = 2*60
+DOOR_OPEN_CHECK_TIMER_s = 1*60
 
 # 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 1280 #2592
@@ -111,6 +114,7 @@ last_closed_door_time = datetime.datetime.now()
 # デバッグ用
 newest_matching_image = ""
 save_matching_flag = False
+save_matching_flag2 = False
 
 # ------------------------------------------------------------------------------
 def init_washer():
@@ -169,8 +173,6 @@ def _capture_washer( full_size:bool=False )->np.ndarray:
 	#cv2.imwrite( "shot.png", img )
 	return img
 
-
-MATCHING_FREQ = 4
 
 # ------------------------------------------------------------------------------
 def _matching_washer()->Tuple[int, int]:
@@ -231,13 +233,16 @@ def _matching_one_washer()->Tuple[int, int]:
 	　x : ドアの状態（open/close）
 	　y : タイマの状態（off/2h/4h）
 	"""
-	global newest_matching_image, save_matching_flag
+	global newest_matching_image, save_matching_flag, save_matching_flag2
 	g.log( "WASHER","食洗器チェック開始")
 
 	# 食洗器の写真を撮影
 	img   = _capture_washer(full_size=False)		# カラー
 	img_g = cv2.cvtColor( img, cv2.COLOR_RGB2GRAY ) # グレー
 
+	if save_matching_flag2:
+		save_matching_flag = False
+		cv2.imwrite("raw.png", img)
 
 	# ----------------------------------------------------------
 	# まず、ドアの開閉状態（OPEN/CLOSE）をパターンマッチングで判定
@@ -441,6 +446,8 @@ def monitor_washer()->None:
 			g.talk("do'aga simattayo")
 			if washer_timer==WASHER_TIMER_OFF:
 				g.talk("ta'ima-no/se'ttowo wasu'renaidene.")
+			else:
+				g.talk("ta'ima-wa se'ttosarete/iru'node ansi'nsite nema'shou.")
 
 
 	# ドアが開いている
@@ -448,22 +455,30 @@ def monitor_washer()->None:
 		# 食器は入っていない
 		if washer_dishes==WASHER_DISHES_EMPTY:
 			# 一定時間空けたなら、汚れた食器を入れたハズ
-			if (datetime.datetime.now()-last_closed_door_time).seconds > DOOR_OPEN_CHECK_TIMER_s and washer_timer==WASHER_TIMER_OFF:
+			if (datetime.datetime.now()-last_closed_door_time).seconds > DOOR_OPEN_CHECK_TIMER_s:
 				# 食器ステータスを「汚れ」に
 				washer_dishes = WASHER_DISHES_DIRTY
 				g.log("WASHER", "ドアが長時間開きました（EMPTY→DIRTY）")
-				g.talk("shokki'wo irete/ma'sune.")
-				g.talk("ta'ima-no/se'ttowo wasu'rezuni.")
 
-				# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
-				schedule.every(30).minutes.do(check_washer).tag("check_washer")
+				# まだタイマーをセットしてない
+				if washer_timer==WASHER_TIMER_OFF:
+					g.talk("shokki'wo irete/ma'sune.")
+					g.talk("ta'ima-no/se'ttowo wasu'rezuni.")
+
+					# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
+					schedule.every(30).minutes.do(check_washer).tag("check_washer")
+
+				# タイマーセット済み
+				else:
+					g.talk("tobira'wo sime'runowo wasurezuni.")
+
 
 		# すでに食器が入っている
 		elif washer_dishes==WASHER_DISHES_DIRTY:
 			g.log("WASHER", "ドア開放を検出（DIRTY）")
 			# 音声は開けた時の１回だけ
 			if old_washer_door == WASHER_DOOR_CLOSE and washer_timer==WASHER_TIMER_OFF:
-				g.talk("ta'ima-no se'ttowo wasurezuni.")
+				g.talk("ta'ima-no/se'ttowo wasurezuni.")
 
 		# 洗浄済みの食器が入っている
 		# 開けたということは、食器を取り出そうとしているタイミングのハズ
@@ -486,8 +501,8 @@ def monitor_washer()->None:
 		# 4.タイマーが2hまたは4h（食器には直接の変化なし）
 		if timer==WASHER_TIMER_2H or timer==WASHER_TIMER_4H:
 			g.log("WASHER","タイマーがセットされました")
-			g.talk("ta'ima-ga settosaremasita.")
-			g.talk("korede' hi'to/a'nsin desu.")
+			g.talk("ta'ima-ga se'tto/sare'masita.")
+			g.talk("korede' hitoa'nsin/de'su.")
 
 	g.log("WASHER", f"食洗器チェック終了：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
 	g.log("WASHER","")
