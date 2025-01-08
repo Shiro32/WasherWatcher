@@ -156,7 +156,7 @@ def _capture_washer( full_size:bool=False )->np.ndarray:
 	・左右の真ん中、上下の下半分にトリミングする
 	"""
 
-	global picam
+	global picam, save_matching_flag2
 
 	# 撮影
 	img = picam.capture_array()
@@ -170,9 +170,11 @@ def _capture_washer( full_size:bool=False )->np.ndarray:
 			int(h*WASHER_CAP_TRIM_TOP) :int(h*WASHER_CAP_TRIM_BOTTOM),
 			int(w*WASHER_CAP_TRIM_LEFT):int(w*WASHER_CAP_TRIM_RIGHT)] #top:bottom, left:right
 
-	#cv2.imwrite( "shot.png", img )
-	return img
+	if save_matching_flag2:
+		save_matching_flag = False
+		cv2.imwrite("raw.png", img)
 
+	return img
 
 # ------------------------------------------------------------------------------
 def _matching_washer()->Tuple[int, int]:
@@ -184,26 +186,32 @@ def _matching_washer()->Tuple[int, int]:
 
 	メインルーチン（schedule)
 	monitor_washer			→ 過去の状態も踏まえ、DOOR/TIMER/DISHESを決める
-	_matching_washer		→ one_washerの認識エラー対策で、頻度監視する
+	_matching_washer★		→ one_washerの認識エラー対策で、頻度監視する
 	_matching_one_washer	→ パターンマッチングでDOOR/TIMERを判定する
 	_capture_washer			→ キャプチャーする
-
+	
 	戻り値：(int x, int y)
-	　x : ドアの状態（open/close）
-	　y : タイマの状態（off/2h/4h）
+	　x : ドアの状態（open/close/unknown）
+	　y : タイマの状態（off/2h/4h/unknown）
 	"""
+	g.log( "WASHER","食洗器チェック開始")
 
+	# 下請けのマッチング処理を読んで、現在の値を獲得する
 	door, timer = _matching_one_washer()
 
 	# ドア判定の頻度監視
-	if door == _matching_washer.prev_door:
+	# 前回と同じ「状態」なら頻度を増やす
+	if door == _matching_washer.prev_door and door != WASHER_STATUS_UNKNOWN:
 		_matching_washer.door_counter += 1
 		if _matching_washer.door_counter >= MATCHING_FREQ:	_matching_washer.current_door = door
+
+	# 前回と異なる「状態」またはUnknownなら頻度を０に戻す
 	else:
 		_matching_washer.door_counter = 0
 		_matching_washer.prev_door = door
 
-	if timer == _matching_washer.prev_timer:
+	# タイマーも同様処理
+	if timer == _matching_washer.prev_timer and timer != WASHER_STATUS_UNKNOWN:
 		_matching_washer.timer_counter += 1
 		if _matching_washer.timer_counter >= MATCHING_FREQ: _matching_washer.current_timer = timer
 	else:
@@ -212,9 +220,11 @@ def _matching_washer()->Tuple[int, int]:
 
 	g.log("MATCHING",
 	   f"DOOR:{_door(_matching_washer.current_door)}({_matching_washer.door_counter}) / TIMER:{_timer(_matching_washer.current_timer)}({_matching_washer.timer_counter})")
+
 	return _matching_washer.current_door, _matching_washer.current_timer
 
 # _matching_washerのstatic変数たち
+# TODO: グローバル変数を増やしたくなくて、_matching_washerの内部オブジェクトとして変数を作っているが、意味があるのか・・・？
 _matching_washer.current_door	= WASHER_STATUS_UNKNOWN
 _matching_washer.current_timer	= WASHER_STATUS_UNKNOWN
 _matching_washer.prev_door 		= WASHER_STATUS_UNKNOWN
@@ -228,35 +238,32 @@ def _matching_one_washer()->Tuple[int, int]:
 	"""
 	食洗器を撮影して、パターンマッチング（OpenCV）により、現在のDOORとTIMERを判定する
 	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
-		
+	_captureを除けば、最下層の処理ルーチン
+
+	メインルーチン（schedule)
+	monitor_washer			→ 過去の状態も踏まえ、DOOR/TIMER/DISHESを決める
+	_matching_washer		→ one_washerの認識エラー対策で、頻度監視する
+	_matching_one_washer★	→ パターンマッチングでDOOR/TIMERを判定する
+	_capture_washer			→ キャプチャーする
+
 	戻り値：(int x, int y)
-	　x : ドアの状態（open/close）
-	　y : タイマの状態（off/2h/4h）
+	　x : ドアの状態（open/close/unknown）
+	　y : タイマの状態（off/2h/4h/unknown）
 	"""
-	global newest_matching_image, save_matching_flag, save_matching_flag2
-	g.log( "WASHER","食洗器チェック開始")
+	global newest_matching_image, save_matching_flag
 
 	# 食洗器の写真を撮影
 	img   = _capture_washer(full_size=False)		# カラー
 	img_g = cv2.cvtColor( img, cv2.COLOR_RGB2GRAY ) # グレー
 
-	if save_matching_flag2:
-		save_matching_flag = False
-		cv2.imwrite("raw.png", img)
-
-	# ----------------------------------------------------------
 	# まず、ドアの開閉状態（OPEN/CLOSE）をパターンマッチングで判定
 	# OPEN/CLOSEの両方の相関係数を出して比較
-
-	# TODO: どうせグレー化して比較するなら、DARKで良くない？
-	if pi.read(CDS_PIN)==pigpio.HIGH:
-		# 明るい場合
+	if pi.read(CDS_PIN)==pigpio.HIGH:		# 明るい場合
 		cds="明るい"
 		result_cl = cv2.matchTemplate(img_g, temp_light_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_light_open , cv2.TM_CCOEFF_NORMED)
 		thr = TEMP_DAY_MATCHING_THRESHOLD
-	else:
-		# 暗い場合
+	else:									# 暗い場合
 		cds="暗い"
 		result_cl = cv2.matchTemplate(img_g, temp_dark_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_dark_open	, cv2.TM_CCOEFF_NORMED)
@@ -278,49 +285,36 @@ def _matching_one_washer()->Tuple[int, int]:
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
 
-	# ----------------------------------------------------------
 	# タイマーLED判定に移る	
 	# ドアの開閉判定に合わせて、検査すべきタイマーLEDの領域を微調整
-
 	if corr_cl>=corr_op:
 		# CLOSE状態認識
 		door = WASHER_DOOR_CLOSE
-		# 2H
 		timer2h_TL = maxLoc_cl[0]+23, maxLoc_cl[1]+14
 		timer2h_BR = timer2h_TL[0]+6, timer2h_TL[1]+6
-		# 4H
 		timer4h_TL = maxLoc_cl[0]+23, maxLoc_cl[1]+8
 		timer4h_BR = timer4h_TL[0]+6, timer4h_TL[1]+6
-
-		tl = maxLoc_cl[0], maxLoc_cl[1]
-		br = maxLoc_cl[0]+temp_light_close.shape[1], maxLoc_cl[1]+temp_light_close.shape[0]
-
+		buttons_tl = maxLoc_cl[0], maxLoc_cl[1]
+		buttons_br = maxLoc_cl[0]+temp_light_close.shape[1], maxLoc_cl[1]+temp_light_close.shape[0]
 	else:
 		# OPEN状態認識
 		door = WASHER_DOOR_OPEN
-		# 2H
 		timer2h_TL = maxLoc_op[0]+30, maxLoc_op[1]+16
 		timer2h_BR = timer2h_TL[0]+6, timer2h_TL[1]+6
-		# 4H
 		timer4h_TL = maxLoc_op[0]+30, maxLoc_op[1]+8
 		timer4h_BR = timer4h_TL[0]+6, timer4h_TL[1]+6
-
-		tl = maxLoc_op[0], maxLoc_op[1]
-		br = maxLoc_op[0]+temp_light_open.shape[1], maxLoc_op[1]+temp_light_open.shape[0]
+		buttons_tl = maxLoc_op[0], maxLoc_op[1]
+		buttons_br = maxLoc_op[0]+temp_light_open.shape[1], maxLoc_op[1]+temp_light_open.shape[0]
 
 	#タイマ2Hと4HそれぞれのLED位置が確定
 	# 2Hと4HタイマーLEDの領域、赤の重さを算出
 	# TODO: 今はRだけの平均値処理をしている模様
-	# TODO: いっそ、全画素取入れか重み付け（R+G+B）
 	# TODO: https://edaha-room.com/python_cv2_blightness/2935/
 	box2 = img[ timer2h_TL[1]:timer2h_BR[1], timer2h_TL[0]:timer2h_BR[0] ]
 	box4 = img[ timer4h_TL[1]:timer4h_BR[1], timer4h_TL[0]:timer4h_BR[0] ]
 
-	# 2Hと4HタイマーLEDの領域、赤の重さを算出
-	# TODO: https://edaha-room.com/python_cv2_blightness/2935/
-
 	# 方法１：R層の平均値
-	# Tで向きを変える→２行目（＝GBR）→１次元化→平均値
+	# Tで向きを変える→２行目（GBRなのでR）→１次元化→平均値
 	c2 = box2.T[2].flatten().mean()
 	c4 = box4.T[2].flatten().mean()
 	cr = max(c2, c4) / min(c2, c4)
@@ -331,12 +325,12 @@ def _matching_one_washer()->Tuple[int, int]:
 
 	g.log("WASHER", f"T2:{c2:0.0f} / T4:{c4:0.0f} / CR:{cr:1.2f}")
 
-	# 半分デバッグ用だけど、３ボタン・4H・2Hの各認識フレームを描く
-	# メインディスプレイに出せるように、グローバルにも入れておく
+	# メインディスプレイ用に３ボタン・4H・2Hの各認識フレームを描く
 	cv2.rectangle(img, timer2h_TL, timer2h_BR, color=(255,255,0), thickness=1)
 	cv2.rectangle(img, timer4h_TL, timer4h_BR, color=(255,255,0), thickness=1)
-	cv2.rectangle(img, tl, br, color=(255,255,255), thickness=1)
-	# TODO: 直接ここで描画できないのか・・・？
+	cv2.rectangle(img, buttons_tl, buttons_br, color=(255,255,255), thickness=1)
+	# TODO: グローバルで渡すより、こちらから能動的にupdateさせるべきでは？
+	# TODO: imgを引数にして、update_displayに引き渡す方がよいと思われる
 	newest_matching_image = img.copy()
 
 	# デバッグ用に、検出結果画像を保存（1回だけ保存）
@@ -354,7 +348,7 @@ def _matching_one_washer()->Tuple[int, int]:
 		else:
 			# 両方が高得点はエラー
 			timer = WASHER_STATUS_UNKNOWN
-			g.log("WASHER", f"C2{c2:0.0f}/C4{c4:0.0f}ともに高得点エラー")
+			g.log("WASHER", f"C2{c2:0.0f}/C4{c4:0.0f}　ともに高得点エラー")
 	
 	# ②高得点領域が無い
 	else: timer = WASHER_TIMER_OFF
@@ -362,26 +356,25 @@ def _matching_one_washer()->Tuple[int, int]:
 	g.log("WASHER", f"一致検出（{_door(door)}/{_timer(timer)}）")
 	return door, timer
 
-
 # ------------------------------------------------------------------------------
 # door/timer/dishesの値→名前変換
 # TODO: 辞書そのものじゃん。直せよ・・・。
 def _door(door:int)->str:
 	if   door==WASHER_DOOR_CLOSE: return "CLOSE"
 	elif door==WASHER_DOOR_OPEN : return "OPEN"
-	else: return "N/A"
+	else: return "UNKNOWN"
 
 def _timer(timer:int)->str:
 	if   timer==WASHER_TIMER_OFF: return "OFF"
 	elif timer==WASHER_TIMER_2H : return "2H"
 	elif timer==WASHER_TIMER_4H : return "4H"
-	else: return "N/A"
+	else: return "UNKNOWN"
 
 def _dishes(dishes:int)->str:
 	if   dishes==WASHER_DISHES_EMPTY : return "EMPTY"
 	elif dishes==WASHER_DISHES_DIRTY : return "DIRTY"
 	elif dishes==WASHER_DISHES_WASHED: return "WASHED"
-	else: return "N/A"
+	else: return "UNKNOWN"
 
 def door_status()->str:
 	return _door(washer_door)
@@ -401,6 +394,14 @@ def monitor_washer()->None:
 	食洗器を撮影して、現在の状況を確認する
 	数十秒ごとにタイマーでメインルーチンからコールされる
 
+	メインルーチン（schedule)
+	monitor_washer★			→ 過去の状態も踏まえ、DOOR/TIMER/DISHESを決める
+	_matching_washer		→ one_washerの認識エラー対策で、頻度監視する
+	_matching_one_washer	→ パターンマッチングでDOOR/TIMERを判定する
+	_capture_washer			→ キャプチャーする
+	
+
+	TODO: 全然あってない↓	
 	・下請け（_matching_washer）で現在の状態（ドア・タイマ）を調べる
 	・状態がunknownなら終了
 	・ドア開→汚れ食器あり
@@ -411,47 +412,51 @@ def monitor_washer()->None:
 	global washer_dishes, washer_door, washer_timer
 	global last_closed_door_time
 
-	start = datetime.datetime.now()
+	start = datetime.datetime.now()		# 処理時間計測
 
 	# 直前値を保持
 	old_washer_dishes	= washer_dishes
 	old_washer_door		= washer_door
 	old_washer_timer	= washer_timer
 
-	# １ショット撮影してドア・タイマの状態を獲得
+	# １ショット撮影してドア・タイマの状態を獲得（頻度監視もしてくれる）
 	door, timer = _matching_washer()
 
-	# 状態不明なら諦める（ガード節）
-	# TIMER(LED)の状態不明は通過しうるので、のちにチェックすること
+	# DOOR状態不明なら諦める（ガード節）
+	# DOORが分からないなら、TIMERも分からないはずなので終了
+	# TIMERだけのUNKNOWNを取り残さないように注意すべし
 	if door==WASHER_STATUS_UNKNOWN:
 		g.log("WASHER", "判定不能")
 		g.log("WASHER", "")
 		return
 
-
 	# 最新の状態をstatic変数に反映する
-	washer_door = door
+	washer_door  = door
 	washer_timer = timer
 
 	# ドア・タイマによるdishesの状態設定・アクション
 
 	# ドアが閉まっている
 	if door==WASHER_DOOR_CLOSE:
-		# 最後にドアが閉まっていた時刻を記憶
-		last_closed_door_time = datetime.datetime.now()
+		# 最後にドアが閉まっていた時刻を記憶（更新）
+		last_closed_door_time = datetime.datetime.ＸＸnow()
 
-		# ドア閉で警報は１回だけ
+		# ドア閉で警報を鳴らす（１回だけ）
 		if old_washer_door == WASHER_DOOR_OPEN:
 			g.log("WASHER", "ドアがしまりました")
-			g.talk("do'aga simattayo")
+			g.talk("do'aga sima'rimasita")
 			if washer_timer==WASHER_TIMER_OFF:
 				g.talk("ta'ima-no/se'ttowo wasu'renaidene.")
 			else:
 				g.talk("ta'ima-wa se'ttosarete/iru'node ansi'nsite nema'shou.")
 
-
 	# ドアが開いている
 	else:
+		# とりあえず開いた事実を告げる（１回だけ）
+		if old_washer_door == WASHER_DOOR_CLOSE:
+			g.talk("do'aga hira'kimasita")
+			g.log("WASHER", "ドアが開きました")
+
 		# 食器は入っていない
 		if washer_dishes==WASHER_DISHES_EMPTY:
 			# 一定時間空けたなら、汚れた食器を入れたハズ
@@ -470,7 +475,7 @@ def monitor_washer()->None:
 
 				# タイマーセット済み
 				else:
-					g.talk("tobira'wo sime'runowo wasurezuni.")
+					g.talk("do'awo sime'runowo wasurezuni.")
 
 
 		# すでに食器が入っている
@@ -487,10 +492,10 @@ def monitor_washer()->None:
 			washer_dishes = WASHER_DISHES_EMPTY	# 食器「空」にする
 			# 音声は開けた時の１回だけ
 			if old_washer_door == WASHER_DOOR_CLOSE:
-				g.talk("shokki'wa senjo'uzumi/de'suyo.")
+				g.talk("shokki'wa ara'tte/arima'suyo.")
 				start_alert_washed()
 
-
+	# ドア処理終了
 	# タイマ状態の変化検出
 	if timer!=WASHER_STATUS_UNKNOWN and old_washer_timer!=timer and old_washer_timer!=WASHER_STATUS_UNKNOWN:
 		# 3.タイマーがオフ（直前までタイマONなら洗浄開始のハズ！！）
