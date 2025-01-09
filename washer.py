@@ -439,16 +439,16 @@ def monitor_washer()->None:
 	# ドアが閉まっている
 	if door==WASHER_DOOR_CLOSE:
 		# 最後にドアが閉まっていた時刻を記憶（更新）
-		last_closed_door_time = datetime.datetime.ＸＸnow()
+		last_closed_door_time = datetime.datetime.now()
 
 		# ドア閉で警報を鳴らす（１回だけ）
 		if old_washer_door == WASHER_DOOR_OPEN:
 			g.log("WASHER", "ドアがしまりました")
 			g.talk("do'aga sima'rimasita")
 			if washer_timer==WASHER_TIMER_OFF:
-				g.talk("ta'ima-no/se'ttowo wasu'renaidene.")
+				g.talk("ta'ima-no/se'ttowo wasure/na'i/dene'")
 			else:
-				g.talk("ta'ima-wa se'ttosarete/iru'node ansi'nsite nema'shou.")
+				g.talk("ta'ima-wa settozumi/na'node ansinsite nema'shou.")
 
 	# ドアが開いている
 	else:
@@ -467,8 +467,8 @@ def monitor_washer()->None:
 
 				# まだタイマーをセットしてない
 				if washer_timer==WASHER_TIMER_OFF:
-					g.talk("shokki'wo irete/ma'sune.")
-					g.talk("ta'ima-no/se'ttowo wasu'rezuni.")
+					#g.talk("shokki'wo irete/ma'sune.")
+					g.talk("ta'ima-no/se'ttowo wasu'renaidene.")
 
 					# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
 					schedule.every(30).minutes.do(check_washer).tag("check_washer")
@@ -507,7 +507,7 @@ def monitor_washer()->None:
 		if timer==WASHER_TIMER_2H or timer==WASHER_TIMER_4H:
 			g.log("WASHER","タイマーがセットされました")
 			g.talk("ta'ima-ga se'tto/sare'masita.")
-			g.talk("korede' hitoa'nsin/de'su.")
+			g.talk("korede' hitoa'nsin de'su.")
 
 	g.log("WASHER", f"食洗器チェック終了：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
 	g.log("WASHER","")

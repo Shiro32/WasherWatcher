@@ -319,7 +319,7 @@ def init_at_boot()->None:
 	"""	
 	global disp_mode
 
-	disp_mode = DISP_MODE_DEVICE_INFO
+	disp_mode = DISP_MODE_NORMAL
 
 	# スクリーンセーバー
 	g.reset_screen_saver()
@@ -357,7 +357,7 @@ def init_at_boot()->None:
 	# 初回描画は早めに（ちっとも早くならないけど）
 	g.update_display_immediately()
 #	g.talk( voice_opening2 )
-#	g.talk( "hoge" )
+	g.talk( "hoge" )
 
 	#プレビュー
 	#washer.preview_washser()
