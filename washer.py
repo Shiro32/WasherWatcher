@@ -341,7 +341,7 @@ def _matching_one_washer()->Tuple[int, int]:
 
 	# ようやくLED判定
 	# ①高得点領域がある
-	if max(c2,c4) > TEMP_TIMER_LED_THRESHOLD:
+	if max(c2,c4) > TEMP_TIMER_LED_THRESHOLD or cr>1.5:
 		if cr>TEMP_TIMER_LED_RATIO_THREDHOLF:
 			# どちらかだけが高得点
 			timer = WASHER_TIMER_2H if c2>c4 else WASHER_TIMER_4H
@@ -446,7 +446,10 @@ def monitor_washer()->None:
 			g.log("WASHER", "ドアがしまりました")
 			g.talk("do'aga sima'rimasita")
 			if washer_timer==WASHER_TIMER_OFF:
-				g.talk("ta'ima-no/se'ttowo wasure/na'i/dene'")
+				if washer_dishes==WASHER_DISHES_DIRTY:
+					g.talk("ta'ima-no/se'ttowo wasure/na'i/dene'")
+				elif washer_dishes==WASHER_DISHES_WASHED:
+					g.talk("tori'dashi/wasu'reno na'iyouni kiwo'tuketekudasai")
 			else:
 				g.talk("ta'ima-wa settozumi/na'node ansinsite nema'shou.")
 
