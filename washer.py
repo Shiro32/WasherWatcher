@@ -374,6 +374,7 @@ def _dishes(dishes:int)->str:
 	if   dishes==WASHER_DISHES_EMPTY : return "EMPTY"
 	elif dishes==WASHER_DISHES_DIRTY : return "DIRTY"
 	elif dishes==WASHER_DISHES_WASHED: return "WASHED"
+	elif dishes==WASHER_DISHES_WASHED_EMPTY: return "WASHED-EMPTY"
 	else: return "UNKNOWN"
 
 def door_status()->str:
@@ -441,6 +442,10 @@ def monitor_washer()->None:
 		# 最後にドアが閉まっていた時刻を記憶（更新）
 		last_closed_door_time = datetime.datetime.now()
 
+		# 「洗浄済み空っぽ」を確認した後の処理
+		if washer_dishes == WASHER_DISHES_WASHED_EMPTY:
+			washer_dishes = WASHER_DISHES_EMPTY
+
 		# ドア閉で警報を鳴らす（１回だけ）
 		if old_washer_door == WASHER_DOOR_OPEN:
 			g.log("WASHER", "ドアがしまりました")
@@ -452,7 +457,7 @@ def monitor_washer()->None:
 
 	# ドアが開いている
 	else:
-		# とりあえず開いた事実を告げる（１回だけ）
+		# とりあえず開いた事実を告げる（検出後の最初の１回だけ、その後の処理は継続されるので注意！）
 		if old_washer_door == WASHER_DOOR_CLOSE:
 			g.talk("do'aga hira'kimasita")
 			g.log("WASHER", "ドアが開きました")
@@ -489,7 +494,10 @@ def monitor_washer()->None:
 		# 開けたということは、食器を取り出そうとしているタイミングのハズ
 		else:
 			g.log("WASHER", "ドア開放を検出（WASHED）")
-			washer_dishes = WASHER_DISHES_EMPTY	# 食器「空」にする
+
+			# 最初からEMPTYなのと、WASHED→EMPTYになった場合の区別ができないので「タイマー忘れるな」警報につながる・・・。
+			washer_dishes = WASHER_DISHES_WASHED_EMPTY	# 洗浄済みを確認した「空っぽ」
+
 			# 音声は開けた時の１回だけ
 			if old_washer_door == WASHER_DOOR_CLOSE:
 				g.talk("shokki'wa ara'tte/arima'suyo.")
