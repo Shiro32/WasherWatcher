@@ -109,6 +109,8 @@ def _receive_message_thread()->None:
 			elif data=="washed":
 				washer.washer_dishes = WASHER_DISHES_WASHED
 				g.log("COMM", "「WASHED」を受信")
+			elif data=="washed-empty":
+				washer.washer_dishes = WASHER_DISHES_WASHED_EMPTY
 			elif data=="save":
 				washer.save_matching_flag = True
 				g.log("COMM", "セーブしまっせ")
