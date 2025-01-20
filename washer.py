@@ -233,12 +233,18 @@ _matching_washer.door_counter	= 0
 _matching_washer.timer_counter	= 0
 
 
+# TODO: CDSの状態をキープする
+cds_status = True
+
 # ------------------------------------------------------------------------------
 def _matching_one_washer()->Tuple[int, int]:
 	"""
 	食洗器を撮影して、パターンマッチング（OpenCV）により、現在のDOORとTIMERを判定する
 	あくまでも現状を見るだけで、過去の経緯（食器有無、洗浄済みなど）はかかわらない
 	_captureを除けば、最下層の処理ルーチン
+
+	TODO: CDSの変化（明→暗、暗→明）でカメラが安定せずに誤判する可能性がある？
+	TODO: CDSが変化したら、多頻度監視をリセットする？？
 
 	メインルーチン（schedule)
 	monitor_washer			→ 過去の状態も踏まえ、DOOR/TIMER/DISHESを決める
@@ -250,7 +256,7 @@ def _matching_one_washer()->Tuple[int, int]:
 	　x : ドアの状態（open/close/unknown）
 	　y : タイマの状態（off/2h/4h/unknown）
 	"""
-	global newest_matching_image, save_matching_flag
+	global newest_matching_image, save_matching_flag, cds_status
 
 	# 食洗器の写真を撮影
 	img   = _capture_washer(full_size=False)		# カラー
@@ -258,17 +264,28 @@ def _matching_one_washer()->Tuple[int, int]:
 
 	# まず、ドアの開閉状態（OPEN/CLOSE）をパターンマッチングで判定
 	# OPEN/CLOSEの両方の相関係数を出して比較
+
+	old_cds_status = cds_status
+
 	if pi.read(CDS_PIN)==pigpio.HIGH:		# 明るい場合
 		cds="明るい"
+		cds_status = True
 		result_cl = cv2.matchTemplate(img_g, temp_light_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_light_open , cv2.TM_CCOEFF_NORMED)
 		thr = TEMP_DAY_MATCHING_THRESHOLD
 	else:									# 暗い場合
 		cds="暗い"
+		cds_status = False
 		result_cl = cv2.matchTemplate(img_g, temp_dark_close, cv2.TM_CCOEFF_NORMED)
 		result_op = cv2.matchTemplate(img_g, temp_dark_open	, cv2.TM_CCOEFF_NORMED)
 		thr = TEMP_NIGHT_MATCHING_THRESHOLD
 
+	# TODO: 前回とCDS状態が違うときは多頻度監視をリセットする！
+	if cds_status != old_cds_status:
+		_matching_washer.door_counter  = 0
+		_matching_washer.timer_counter = 0
+
+	# 開閉それぞれの相関地を得る
 	_, corr_cl, _, maxLoc_cl = cv2.minMaxLoc(result_cl)
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
 	g.log( "WASHER", f"CDS:{cds} / CL:{corr_cl:.2f} / OP:{corr_op:.2f}" )
