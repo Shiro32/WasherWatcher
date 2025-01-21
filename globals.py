@@ -479,6 +479,7 @@ def talk(message, wait=True):
 	if pi.read(SLIDE_SW_PIN)==pigpio.HIGH : return
 
 	h = datetime.datetime.now().hour
+	if h<6: return
 
 	# いよいよ喋るけど、まれにエラーが出るのでtry/catch
 	try:

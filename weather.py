@@ -187,6 +187,8 @@ def update_forecast_weather():
 		tomorrow_dt = datetime.datetime.strptime(ld_weather['forecasts'][1]['date'], '%Y-%m-%d').date()
 		tomorrow_date = tomorrow_dt.strftime('%m月%d日')
 		tomorrow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
+		print( f"TELOP:{tomorrow_telop} / IMAGE:{tomorrow_image}")
+
 		am_rain  = _check_value(ld_weather['forecasts'][1]['chanceOfRain']['T06_12'][:-1])
 		pm_rain  = _check_value(ld_weather['forecasts'][1]['chanceOfRain']['T12_18'][:-1])
 		max_temp = _check_value(ld_weather['forecasts'][1]['temperature']['max']['celsius'])
@@ -200,6 +202,8 @@ def update_forecast_weather():
 		tomorrow_dt = datetime.datetime.strptime(ld_weather['forecasts'][0]['date'], '%Y-%m-%d').date()
 		tomorrow_date = tomorrow_dt.strftime('%m月%d日')
 		tomorrow_image = "weather_icon/"+weather_icon.half_icon[tomorrow_telop]
+		print( f"TELOP:{tomorrow_telop} / IMAGE:{tomorrow_image}")
+
 		am_rain  = _check_value(ld_weather['forecasts'][0]['chanceOfRain']['T06_12'][:-1])
 		pm_rain  = _check_value	(ld_weather['forecasts'][0]['chanceOfRain']['T12_18'][:-1])
 		max_temp = _check_value(ld_weather['forecasts'][0]['temperature']['max']['celsius'])
