@@ -341,7 +341,7 @@ def _matching_one_washer()->Tuple[int, int]:
 
 	# ようやくLED判定
 	# ①高得点領域がある
-	if max(c2,c4) > TEMP_TIMER_LED_THRESHOLD or cr>1.5:
+	if (max(c2,c4) > TEMP_TIMER_LED_THRESHOLD) or (cr>1.5 and max(c2,c4)>20) :
 		if cr>TEMP_TIMER_LED_RATIO_THREDHOLF:
 			# どちらかだけが高得点
 			timer = WASHER_TIMER_2H if c2>c4 else WASHER_TIMER_4H
