@@ -397,7 +397,8 @@ if __name__ == "__main__":
 			if btn==PUSH_1CLICK:
 				if g.dialog_status()==False:
 					g.update_display_immediately()
-					g.front_button_sound()
+#					g.front_button_sound()
+					washer.washer_voices()
 					g.reset_front_button_status()
 
 			# ロングプレス（モードチェンジ）

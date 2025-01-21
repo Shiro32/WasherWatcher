@@ -406,6 +406,21 @@ def dishes_status()->str:
 def washer_status()->str:
 	return _door(washer_door)+","+_timer(washer_timer)+","+_dishes(washer_dishes)
 
+def washer_voices()->None:
+	if   washer_door==WASHER_DOOR_CLOSE	: g.talk("do'awa sima'tteimasu")
+	elif washer_door==WASHER_DOOR_OPEN	: g.talk("do'awa hira'iteimasu")
+	else 								: g.talk("do'ano jou'taiga wakarimasen")
+
+	if   washer_timer==WASHER_TIMER_2H	: g.talk("ta'ima-wa niji'kanni se'ttosareteimasu")
+	elif washer_timer==WASHER_TIMER_4H	: g.talk("ta'ima-wa yoji'kanni se'ttosareteimasu")
+	else								: g.talk("ta'ima-no jou'taiga wakarimasen")
+
+	if	 washer_dishes==WASHER_DISHES_EMPTY	: g.talk("sho'kkiwa kara'ppodesu")
+	elif washer_dishes==WASHER_DISHES_DIRTY : g.talk("sho'kkiwa yogorete/ima'su")
+	elif washer_dishes==WASHER_DISHES_WASHED: g.talk("sho'kkiwa senjouzumi/de'su")
+	elif washer_dishes==WASHER_DISHES_WASHED_EMPTY: g.talk("sho'kkiwa senjouzumide toridasi/ma'sita")
+	else									: g.talk("sho'kkino jou'taiga wakarimasen")
+
 # ------------------------------------------------------------------------------
 def monitor_washer()->None:
 	"""
