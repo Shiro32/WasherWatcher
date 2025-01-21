@@ -421,6 +421,7 @@ def washer_voices()->None:
 	elif washer_dishes==WASHER_DISHES_WASHED_EMPTY: g.talk("sho'kkiwa senjouzumide toridasi/ma'sita")
 	else									: g.talk("sho'kkino jou'taiga wakarimasen")
 
+
 # ------------------------------------------------------------------------------
 def monitor_washer()->None:
 	"""
