@@ -42,6 +42,7 @@ COMM_RAIN_HIGH	= "rain_high"	# HIGH = 晴れ（乾いている）
 # 食洗器状況やりとり
 COMM_WASHER_REQUEST	= "washer_status"	# 状態取得リクエスト
 COMM_WASHER_ANSWER  = "washer_answer:"	# 状態返信時のヘッダー
+COMM_WASHER_WATCHDOG= "washer_watchdog"	# 通信状況確認
 
 #COMM_WASHER_EMPTY	= "washer_empty"	# 空っぽ
 #COMM_WASHER_UNSET	= "washer_dirty"	# 未セット（要洗浄）

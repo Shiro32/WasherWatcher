@@ -84,6 +84,10 @@ def _receive_message_thread()->None:
 				g.log("COMM", f"現状認識：{washer.washer_status()}")
 				send_message( COMM_WASHER_ANSWER+washer.washer_status() )
 
+			elif data==COMM_WASHER_WATCHDOG:
+				g.log("COMM","「WATCHDOG」を受信")
+				send_message("OK")
+
 			# 以下はデバッグ用
 			elif data=="open":
 				washer.washer_door = WASHER_DOOR_OPEN

@@ -644,7 +644,7 @@ def alert_washed()->None:
 	"""
 	g.set_dialog( PIC_DIRTY_OK, stop_alert_washed )
 	g.log("TIMER", "食器は洗浄済み！")
-#	g.talk("sho'kkiwa ara'tte/ari'masuyo-")
+#	g.talk("shokki'wa ara'tte/ari'masuyo-")
 
 def stop_alert_washed()->None:
 	"""

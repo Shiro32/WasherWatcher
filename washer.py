@@ -78,7 +78,7 @@ TEMP_TIMER_LED_THRESHOLD = 55	# LED点灯とみなす輝度(暗い＝５０、�
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
 # でも、本当に食器を入れる時も邪魔なので、あまり長く開けていないかもしれない
-DOOR_OPEN_CHECK_TIMER_s = 1*60
+DOOR_OPEN_CHECK_TIMER_s = 3*60
 
 # 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 1280 #2592
@@ -375,24 +375,30 @@ def _matching_one_washer()->Tuple[int, int]:
 
 # ------------------------------------------------------------------------------
 # door/timer/dishesの値→名前変換
-# TODO: 辞書そのものじゃん。直せよ・・・。
 def _door(door:int)->str:
-	if   door==WASHER_DOOR_CLOSE: return "CLOSE"
-	elif door==WASHER_DOOR_OPEN : return "OPEN"
-	else: return "UNKNOWN"
+	return {
+		WASHER_DOOR_CLOSE		:"CLOSE",
+		WASHER_DOOR_OPEN		:"OPEN",
+		WASHER_STATUS_UNKNOWN	: "UNKNOWN"
+	}.get(door, "UNKNOWN")
+
 
 def _timer(timer:int)->str:
-	if   timer==WASHER_TIMER_OFF: return "OFF"
-	elif timer==WASHER_TIMER_2H : return "2H"
-	elif timer==WASHER_TIMER_4H : return "4H"
-	else: return "UNKNOWN"
+	return {
+		WASHER_TIMER_OFF		: "OFF",
+		WASHER_TIMER_2H			: "2H",
+		WASHER_TIMER_4H			: "4H",
+		WASHER_STATUS_UNKNOWN	: "UNKNOWN"
+	}.get(timer, "UNKNOWN")
 
 def _dishes(dishes:int)->str:
-	if   dishes==WASHER_DISHES_EMPTY : return "EMPTY"
-	elif dishes==WASHER_DISHES_DIRTY : return "DIRTY"
-	elif dishes==WASHER_DISHES_WASHED: return "WASHED"
-	elif dishes==WASHER_DISHES_WASHED_EMPTY: return "WASHED-EMPTY"
-	else: return "UNKNOWN"
+	return {
+		WASHER_DISHES_EMPTY			: "EMPTY",
+		WASHER_DISHES_DIRTY			: "DIRTY",
+		WASHER_DISHES_WASHED		: "WASHED",
+		WASHER_DISHES_WASHED_EMPTY	: "WASHED-EMPTY",
+		WASHER_STATUS_UNKNOWN		: "UNKNOWN"
+	}.get(dishes, "UNKNOWN")
 
 def door_status()->str:
 	return _door(washer_door)
@@ -410,16 +416,19 @@ def washer_voices()->None:
 	if   washer_door==WASHER_DOOR_CLOSE	: g.talk("do'awa sima'tteimasu")
 	elif washer_door==WASHER_DOOR_OPEN	: g.talk("do'awa hira'iteimasu")
 	else 								: g.talk("do'ano jou'taiga wakarimasen")
+	time.sleep(0.5)
 
 	if   washer_timer==WASHER_TIMER_2H	: g.talk("ta'ima-wa niji'kanni se'ttosareteimasu")
 	elif washer_timer==WASHER_TIMER_4H	: g.talk("ta'ima-wa yoji'kanni se'ttosareteimasu")
+	elif washer_timer==WASHER_TIMER_OFF	: g.talk("ta'ima-wa o'fudesu")
 	else								: g.talk("ta'ima-no jou'taiga wakarimasen")
+	time.sleep(0.5)
 
-	if	 washer_dishes==WASHER_DISHES_EMPTY	: g.talk("sho'kkiwa kara'ppodesu")
-	elif washer_dishes==WASHER_DISHES_DIRTY : g.talk("sho'kkiwa yogorete/ima'su")
-	elif washer_dishes==WASHER_DISHES_WASHED: g.talk("sho'kkiwa senjouzumi/de'su")
-	elif washer_dishes==WASHER_DISHES_WASHED_EMPTY: g.talk("sho'kkiwa senjouzumide toridasi/ma'sita")
-	else									: g.talk("sho'kkino jou'taiga wakarimasen")
+	if	 washer_dishes==WASHER_DISHES_EMPTY	: g.talk("shokki'wa kara'ppodesu")
+	elif washer_dishes==WASHER_DISHES_DIRTY : g.talk("shokki'wa yogorete/ima'su")
+	elif washer_dishes==WASHER_DISHES_WASHED: g.talk("shokki'wa senjouzumi/de'su")
+	elif washer_dishes==WASHER_DISHES_WASHED_EMPTY: g.talk("shokki'wa senjouzumide toridasi/ma'sita")
+	else									: g.talk("shokki'no jou'taiga wakarimasen")
 
 
 # ------------------------------------------------------------------------------
@@ -694,7 +703,7 @@ def alert_washed()->None:
 	"""
 	g.set_dialog( PIC_DIRTY_OK, stop_alert_washed )
 	g.log("TIMER", "食器は洗浄済み！")
-#	g.talk("sho'kkiwa ara'tte/ari'masuyo-")
+#	g.talk("shokki'wa ara'tte/ari'masuyo-")
 
 def stop_alert_washed()->None:
 	"""

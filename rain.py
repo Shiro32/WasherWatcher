@@ -122,11 +122,11 @@ def check_fine()->None:
 
 	# RESETボタンを押したら、現在天気を喋る
 	# TODO: ダイアログ消去と重複しないようにダサいチェックが入っている
-	if g.dialog_status()==False and g.front_button_status()==PUSH_1CLICK:
-		g.reset_front_button_status()
-		g.talk(voices_hare[rnd(len(voices_hare))])
-		g.update_display_immediately()
-		sleep_timer = 999999
+	#if g.dialog_status()==False and g.front_button_status()==PUSH_1CLICK:
+	#	g.reset_front_button_status()
+	#	g.talk(voices_hare[rnd(len(voices_hare))])
+	#	g.update_display_immediately()
+	#	sleep_timer = 999999
 
 def update_fine()->None:
 	# 雨が降ってないときの処理。たまには喋る？
@@ -178,11 +178,11 @@ def check_rain()->None:
 	# STOPボタンを押したら、現在天候をしゃべる
 	# Thresholdのせいで、現在値と異なる場合があるのでちゃんとしゃべる
 	# TODO: ダサい細工を何とかしたい
-	if g.dialog_status()==False and g.front_button_status()==PUSH_1CLICK:
-		g.reset_front_button_status()
-		g.update_display_immediately()
-		g.talk(voices_rain[rnd(len(voices_hare))] if is_rain() else "honto'uwa hare'desuyo")
-		sleep_timer = 999999
+	#if g.dialog_status()==False and g.front_button_status()==PUSH_1CLICK:
+	#	g.reset_front_button_status()
+	#	g.update_display_immediately()
+	#	g.talk(voices_rain[rnd(len(voices_hare))] if is_rain() else "honto'uwa hare'desuyo")
+	#	sleep_timer = 999999
 
 def update_rain():
 	pass
