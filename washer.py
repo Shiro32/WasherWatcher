@@ -78,7 +78,7 @@ TEMP_TIMER_LED_THRESHOLD = 55	# LED点灯とみなす輝度(暗い＝５０、�
 # 食洗器ドアが開放中と認識する秒数
 # 一瞬中身を見た時なども、ドア開放（＝食器投入）とみなされないようにするため
 # でも、本当に食器を入れる時も邪魔なので、あまり長く開けていないかもしれない
-DOOR_OPEN_CHECK_TIMER_s = 3*60
+DOOR_OPEN_CHECK_TIMER_s = 1*60
 
 # 食洗器撮影写真サイズ
 CAPTURE_WIDTH	= 1280 #2592
@@ -517,8 +517,7 @@ def monitor_washer()->None:
 
 				# まだタイマーをセットしてない
 				if washer_timer==WASHER_TIMER_OFF:
-					#g.talk("shokki'wo irete/ma'sune.")
-					g.talk("ta'ima-no/se'ttowo wasu'renaidene.")
+					g.talk("ta'ima-no/se'ttowo wasurena'ide.")
 
 					# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
 					schedule.every(30).minutes.do(check_washer).tag("check_washer")
