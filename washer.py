@@ -69,8 +69,8 @@ TEMP_DARK_CLOSE  = "./pattern/3buttons_dark_close.png"
 TEMP_DAY_MATCHING_THRESHOLD 	= 0.65	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 TEMP_NIGHT_MATCHING_THRESHOLD	= 0.75	# OPEN/CLOSEどちらもこれを下回ると判定不能扱い
 
-MATCHING_FREQ = 3	# ノイズ対策で多頻度監視する回数
-
+MATCHING_FREQ  			= 2		# ノイズ対策で多頻度監視する回数
+MATCHING_TIMER4_FREQ	= 20	# 特にLED4がすぐに消えちゃうので、超念入りに頻度監視する
 
 TEMP_TIMER_LED_RATIO_THREDHOLF	= 1.20
 TEMP_TIMER_LED_THRESHOLD = 55	# LED点灯とみなす輝度(暗い＝５０、明るい＝６０)
@@ -183,7 +183,8 @@ def _matching_washer()->Tuple[int, int]:
 	下請けとして_matching_one_washerを呼び出す
 	本来は、_matching_one_washerの結果をそのまま使えばよい（従来はそうしていた）が、
 	ちょいちょいとエラーが起きるので、複数回続いた場合のみ、状態変化するようにする
-
+	特に、Timer4（LED 4H）がちょっとした具合でOFFになるため、念入りに
+	
 	メインルーチン（schedule)
 	monitor_washer			→ 過去の状態も踏まえ、DOOR/TIMER/DISHESを決める
 	_matching_washer★		→ one_washerの認識エラー対策で、頻度監視する
@@ -199,21 +200,30 @@ def _matching_washer()->Tuple[int, int]:
 	# 下請けのマッチング処理を読んで、現在の値を獲得する
 	door, timer = _matching_one_washer()
 
-	# ドア判定の頻度監視
+	# １．ドア判定の頻度監視
 	# 前回と同じ「状態」なら頻度を増やす
 	if door == _matching_washer.prev_door and door != WASHER_STATUS_UNKNOWN:
 		_matching_washer.door_counter += 1
-		if _matching_washer.door_counter >= MATCHING_FREQ:	_matching_washer.current_door = door
+		
+		# 頻度が達したなら状態変化
+		if _matching_washer.door_counter >= MATCHING_FREQ:
+			_matching_washer.current_door = door
 
 	# 前回と異なる「状態」またはUnknownなら頻度を０に戻す
 	else:
 		_matching_washer.door_counter = 0
 		_matching_washer.prev_door = door
 
-	# タイマーも同様処理
+	# ２．タイマーの頻度監視
+	# 4時間タイマー（TIEMR_4H）は暗くてOFFになりがちなので、頻度監視を強める
+	if _matching_washer.current_timer == WASHER_TIMER_4H:
+		freq_thr = MATCHING_TIMER4_FREQ
+	else:
+		freq_thr = MATCHING_FREQ
+
 	if timer == _matching_washer.prev_timer and timer != WASHER_STATUS_UNKNOWN:
 		_matching_washer.timer_counter += 1
-		if _matching_washer.timer_counter >= MATCHING_FREQ: _matching_washer.current_timer = timer
+		if _matching_washer.timer_counter >= freq_thr: _matching_washer.current_timer = timer
 	else:
 		_matching_washer.timer_counter = 0
 		_matching_washer.prev_timer = timer
@@ -375,6 +385,7 @@ def _matching_one_washer()->Tuple[int, int]:
 
 # ------------------------------------------------------------------------------
 # door/timer/dishesの値→名前変換
+# 以前はif～elifの繰り返しだったが、辞書形式に変更
 def _door(door:int)->str:
 	return {
 		WASHER_DOOR_CLOSE		:"CLOSE",
