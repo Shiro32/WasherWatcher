@@ -606,15 +606,16 @@ def check_sleep()->None:
 		# 直前が昼間モードで、暗くなった時だけ処理
 		# 電気を消した、自然に夜になった
 		if sleep_mode==SLEEP_MODE_WAKEUP:
-			time.sleep(3)
+			time.sleep(1)
 
 			# 寝るとき
 			if time_mode >= TIME_MODE_SLEEP:
 				if washer.check_washer( call_from_child=False ):
 					# 食洗器に問題がない時だけお休みあいさつ
-					talk( voice_goodnight1 )
+					talk( "oyasuminasai" )
+	#				talk( voice_goodnight1 )
 	#				talk( voice_goodnight_rain if is_rain() else voice_goodnight_fine )
-					talk( voice_goodnight2 )
+	#				talk( voice_goodnight2 )
 			elif time_mode == TIME_MODE_DAY:
 				#talk( voice_kurai )
 				pass

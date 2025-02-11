@@ -531,7 +531,7 @@ def monitor_washer()->None:
 					g.talk("ta'ima-no/se'ttowo wasurena'ide.")
 
 					# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
-					schedule.every(30).minutes.do(check_washer).tag("check_washer")
+					schedule.every(10).minutes.do(check_washer).tag("check_washer")
 
 				# タイマーセット済み
 				else:
@@ -628,7 +628,7 @@ def check_washer( call_from_child:bool=False )->bool:
 			if call_from_child==False:
 				g.log("WASHER","食器が入っていて、タイマーはセットされています！")
 				g.talk( "shokuse'nkiwa daijo'ubu desu.")
-				g.talk( "a'nsinsite oya'suminasai.")
+				#g.talk( "a'nsinsite oya'suminasai.")
 
 			if not call_from_child: start_alert_timer_ok()	# いらない気もするが・・・ TODO:
 			return True
