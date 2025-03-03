@@ -291,6 +291,7 @@ def display_device_info():
 		img = img.resize( (img.width//2, img.height//2) )
 		g.image_main_buf.paste( img )
 
+	_print_one("NET"	, msg)
 	_print_one("DOOR"	, washer.door_status())
 	_print_one("TIMER"	, washer.timer_status())
 	_print_one("DISHES"	, washer.dishes_status())

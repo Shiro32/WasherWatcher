@@ -111,6 +111,17 @@ picam = 1
 # ここからの経過時間がDOOR_OPEN_CHECK_TIMER_sを超えると、開放とみなす
 last_closed_door_time = datetime.datetime.now()
 
+# 過剰な「OK」音声を抑制するためのフラグ
+# CDSのオン・オフの都度、「タイマー良好」を発声するのを抑制
+# セット：タイマー初検出時（OFF→ON）
+# クリア：状態確認し、音声発信したとき（通知したので以後しゃべらない）
+need_to_notice_timer_set = False
+
+
+# カメラの見通しが悪い時の警報用フラグ
+# 見えていない間に多重コールしないようにしているだけ
+camera_unseen = False
+
 # デバッグ用
 newest_matching_image = ""
 save_matching_flag = False
@@ -295,10 +306,10 @@ def _matching_one_washer()->Tuple[int, int]:
 		_matching_washer.door_counter  = 0
 		_matching_washer.timer_counter = 0
 
-	# 開閉それぞれの相関地を得る
+	# 開閉それぞれの相関値を得る
 	_, corr_cl, _, maxLoc_cl = cv2.minMaxLoc(result_cl)
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
-	g.log( "WASHER", f"CDS:{cds} / CL:{corr_cl:.2f} / OP:{corr_op:.2f}" )
+	g.log( "WASHER", f"CDS:{cds} / CL:{corr_cl:.2f} / OP:{cor_op:.2f}" )
 	
 	# OPEN/CLOSEのどちらか判別できないときは諦める
 	# （ケース１）開閉どちらも閾値を下回る場合（人がカメラを邪魔している等）
@@ -464,7 +475,8 @@ def monitor_washer()->None:
 	・タイマーオン→汚れ食器なし
 	"""
 	global washer_dishes, washer_door, washer_timer
-	global last_closed_door_time
+	global last_closed_door_time, need_to_notice_timer_set
+	global camera_unseen
 
 	start = datetime.datetime.now()		# 処理時間計測
 
@@ -482,7 +494,20 @@ def monitor_washer()->None:
 	if door==WASHER_STATUS_UNKNOWN:
 		g.log("WASHER", "判定不能")
 		g.log("WASHER", "")
+
+		# 警報処理を追加（2024/3/3）
+		if camera_unseen==False:
+			camera_unseen = True
+			start_alert_unseen()
+
 		return
+	
+	# ここからは少なくともドア状態は見えている前提で各種処理に入る
+
+	# すでに見通し警報が鳴っていたら解除する
+	if camera_unseen:
+		camera_unseen = False
+		stop_alert_unseen()
 
 	# 最新の状態をstatic変数に反映する
 	washer_door  = door
@@ -559,7 +584,7 @@ def monitor_washer()->None:
 				start_alert_washed()
 
 	# ドア処理終了
-	# タイマ状態の変化検出
+	# ここからタイマ状態の変化検出
 	if timer!=WASHER_STATUS_UNKNOWN and old_washer_timer!=timer and old_washer_timer!=WASHER_STATUS_UNKNOWN:
 		# 3.タイマーがオフ（直前までタイマONなら洗浄開始のハズ！！）
 		if timer==WASHER_TIMER_OFF:
@@ -571,6 +596,7 @@ def monitor_washer()->None:
 			g.log("WASHER","タイマーがセットされました")
 			g.talk("ta'ima-ga se'tto/sare'masita.")
 			g.talk("korede' hitoa'nsin de'su.")
+			need_to_notice_timer_set = True
 
 	g.log("WASHER", f"食洗器チェック終了：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
 	g.log("WASHER","")
@@ -623,14 +649,22 @@ def check_washer( call_from_child:bool=False )->bool:
 			if not call_from_child: start_alert_dirty_dishes() # 最重要機能！
 			return False
 
-		# タイマがセットされている→OK
+		# タイマがセットされている→OK音声
 		else:
-			if call_from_child==False:
-				g.log("WASHER","食器が入っていて、タイマーはセットされています！")
-				g.talk( "shokuse'nkiwa daijo'ubu desu.")
-				#g.talk( "a'nsinsite oya'suminasai.")
+			if need_to_notice_timer_set:
+				# これ以降、音声通知の必要はなくなる
+				need_to_notice_timer_set = False
 
-			if not call_from_child: start_alert_timer_ok()	# いらない気もするが・・・ TODO:
+				if call_from_child==False:
+					# CDS感度過剰でここが大量にコールされてしまう・・・。
+					# １晩で１回に制限したいところで、発声フラグを作るか？
+
+					g.log("WASHER","食器が入っていて、タイマーはセットされています！")
+					g.talk( "shokuse'nkiwa daijo'ubu desu.")
+					#g.talk( "a'nsinsite oya'suminasai.")
+
+				if not call_from_child: start_alert_timer_ok()	# いらない気もするが・・・ TODO:
+
 			return True
 
 # ------------------------------------------------------------------------------
@@ -683,13 +717,14 @@ def alert_timer_ok()->None:
 	"""
 	g.set_dialog( PIC_DIRTY_OK, stop_alert_timer_ok )
 	g.log("TIMER", "タイマーセットされてますよ～")
+	# タイマーがセットされている状態では、いちいち音声アラートはうるさいのでやらない
 
 def stop_alert_timer_ok()->None:
 	"""
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("TIMER","警報終了～")
-	g.talk("ke'ihou tei'si")
+#	g.talk("ke'ihou tei'si")
 	schedule.clear("alert_timer_ok")
 	schedule.clear("stop_alert_timer_ok")
 	g.update_display_immediately()
@@ -713,6 +748,7 @@ def alert_washed()->None:
 	"""
 	g.set_dialog( PIC_DIRTY_OK, stop_alert_washed )
 	g.log("TIMER", "食器は洗浄済み！")
+	# タイマーセット済みと同様、ここで音声アラートは過剰なのでカット
 #	g.talk("shokki'wa ara'tte/ari'masuyo-")
 
 def stop_alert_washed()->None:
@@ -720,9 +756,40 @@ def stop_alert_washed()->None:
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("TIMER","終了～")
-	g.talk("pipi")
+	#g.talk("pipi")
 	schedule.clear("alert_washed")
 	schedule.clear("stop_alert_washed")
+	g.update_display_immediately()
+
+# ------------------------------------------------------------------------------
+def start_alert_unseen()->None:
+	"""
+	カメラで食洗器の状態を検出できないときのアラート
+	ひょっとすると、頻度監視してやった方がいいかもしれない
+	"""
+	g.log("MONITOR","見えない")
+	alert_unseen()
+	schedule.every(WASHER_UNSEEN_INTERVAL_s).seconds\
+			.do(alert_unseen).tag("alert_unseen")
+
+	schedule.every(WASHER_UNSEEN_TIMER_s).seconds\
+			.do(stop_alert_unseen).tag("stop_alert_unseen")
+
+def alert_unseen()->None:
+	"""
+	タイマーセット済みハンドラ～
+	"""
+	g.set_dialog(PIC_UNSEEN, stop_alert_unseen )
+	g.log("MONITOR", "食洗器が見えないですよ～")
+	g.talk("mie'naizo-")
+
+def stop_alert_unseen()->None:
+	"""
+	ボタンでダイアログ消したときの扱い
+	"""
+	g.log("MONITOR","警報終了～")
+	schedule.clear("alert_unseen")
+	schedule.clear("stop_alert_unseen")
 	g.update_display_immediately()
 
 # ------------------------------------------------------------------------------
