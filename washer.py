@@ -206,7 +206,7 @@ def _matching_washer()->Tuple[int, int]:
 	　x : ドアの状態（open/close/unknown）
 	　y : タイマの状態（off/2h/4h/unknown）
 	"""
-	g.log( "WASHER","食洗器チェック開始")
+	g.log( "MATCHING","食洗器チェック開始")
 
 	# 下請けのマッチング処理を読んで、現在の値を獲得する
 	door, timer = _matching_one_washer()
@@ -278,6 +278,7 @@ def _matching_one_washer()->Tuple[int, int]:
 	　y : タイマの状態（off/2h/4h/unknown）
 	"""
 	global newest_matching_image, save_matching_flag, cds_status
+	global camera_unseen
 
 	# 食洗器の写真を撮影
 	img   = _capture_washer(full_size=False)		# カラー
@@ -309,18 +310,25 @@ def _matching_one_washer()->Tuple[int, int]:
 	# 開閉それぞれの相関値を得る
 	_, corr_cl, _, maxLoc_cl = cv2.minMaxLoc(result_cl)
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
-	g.log( "WASHER", f"CDS:{cds} / CL:{corr_cl:.2f} / OP:{cor_op:.2f}" )
+	g.log( "1WASHER", f"CDS:{cds} / CL:{corr_cl:.2f} / OP:{corr_op:.2f}" )
 	
 	# OPEN/CLOSEのどちらか判別できないときは諦める
 	# （ケース１）開閉どちらも閾値を下回る場合（人がカメラを邪魔している等）
-	if max(corr_cl, corr_op) < thr:
-		g.log("WASHER", "判定不能（相関が低すぎる）")
+	# （ケース２）開閉の差が小さすぎる場合（不鮮明な写真？）
+	if max(corr_cl, corr_op) < thr or abs(corr_cl - corr_op) < 0.1:
+		g.log("1WASHER", "判定不能（相関が低すぎる or 相関に差がない）")
+
+		# 警報処理を追加（2024/3/3）
+		#if camera_unseen==False:
+		#	camera_unseen = True
+		#	start_alert_unseen()
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
-	# （ケース２）開閉の差が小さすぎる場合（不鮮明な写真？）
-	if abs(corr_cl - corr_op) < 0.1:
-		g.log("WASHER", "判定不能（開閉に差がない）")
-		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
+	# すでに見通し警報が鳴っていたら解除する
+	if camera_unseen:
+		g.log("MONITOR","見えない警報解除")
+		camera_unseen = False
+		stop_alert_unseen()
 
 
 	# タイマーLED判定に移る	
@@ -361,7 +369,7 @@ def _matching_one_washer()->Tuple[int, int]:
 	#c2 = box2.T[0].flatten().mean() + box2.T[1].flatten().mean() + box2.T[2].flatten().mean()	
 	#c4 = box4.T[0].flatten().mean() + box4.T[1].flatten().mean() + box4.T[2].flatten().mean()	
 
-	g.log("WASHER", f"T2:{c2:0.0f} / T4:{c4:0.0f} / CR:{cr:1.2f}")
+	g.log("1WASHER", f"T2:{c2:0.0f} / T4:{c4:0.0f} / CR:{cr:1.2f}")
 
 	# メインディスプレイ用に３ボタン・4H・2Hの各認識フレームを描く
 	cv2.rectangle(img, timer2h_TL, timer2h_BR, color=(255,255,0), thickness=1)
@@ -386,12 +394,12 @@ def _matching_one_washer()->Tuple[int, int]:
 		else:
 			# 両方が高得点はエラー
 			timer = WASHER_STATUS_UNKNOWN
-			g.log("WASHER", f"C2{c2:0.0f}/C4{c4:0.0f}　ともに高得点エラー")
+			g.log("1WASHER", f"C2{c2:0.0f}/C4{c4:0.0f}　ともに高得点エラー")
 	
 	# ②高得点領域が無い
 	else: timer = WASHER_TIMER_OFF
 
-	g.log("WASHER", f"一致検出（{_door(door)}/{_timer(timer)}）")
+	g.log("1WASHER", f"一致検出（{_door(door)}/{_timer(timer)}）")
 	return door, timer
 
 # ------------------------------------------------------------------------------
@@ -492,23 +500,11 @@ def monitor_washer()->None:
 	# DOORが分からないなら、TIMERも分からないはずなので終了
 	# TIMERだけのUNKNOWNを取り残さないように注意すべし
 	if door==WASHER_STATUS_UNKNOWN:
-		g.log("WASHER", "判定不能")
-		g.log("WASHER", "")
-
-		# 警報処理を追加（2024/3/3）
-		if camera_unseen==False:
-			camera_unseen = True
-			start_alert_unseen()
-
+		g.log("MONITOR", "判定不能")
+		g.log("MONITOR", "")
 		return
 	
 	# ここからは少なくともドア状態は見えている前提で各種処理に入る
-
-	# すでに見通し警報が鳴っていたら解除する
-	if camera_unseen:
-		camera_unseen = False
-		stop_alert_unseen()
-
 	# 最新の状態をstatic変数に反映する
 	washer_door  = door
 	washer_timer = timer
@@ -526,7 +522,7 @@ def monitor_washer()->None:
 
 		# ドア閉で警報を鳴らす（１回だけ）
 		if old_washer_door == WASHER_DOOR_OPEN:
-			g.log("WASHER", "ドアがしまりました")
+			g.log("MONITOR", "ドアがしまりました")
 			g.talk("do'aga sima'rimasita")
 			if washer_timer==WASHER_TIMER_OFF:
 				if washer_dishes==WASHER_DISHES_DIRTY:
@@ -541,7 +537,7 @@ def monitor_washer()->None:
 		# とりあえず開いた事実を告げる（検出後の最初の１回だけ、その後の処理は継続されるので注意！）
 		if old_washer_door == WASHER_DOOR_CLOSE:
 			g.talk("do'aga hira'kimasita")
-			g.log("WASHER", "ドアが開きました")
+			g.log("MONITOR", "ドアが開きました")
 
 		# 食器は入っていない
 		if washer_dishes==WASHER_DISHES_EMPTY:
@@ -549,7 +545,7 @@ def monitor_washer()->None:
 			if (datetime.datetime.now()-last_closed_door_time).seconds > DOOR_OPEN_CHECK_TIMER_s:
 				# 食器ステータスを「汚れ」に
 				washer_dishes = WASHER_DISHES_DIRTY
-				g.log("WASHER", "ドアが長時間開きました（EMPTY→DIRTY）")
+				g.log("MONITOR", "ドアが長時間開きました（EMPTY→DIRTY）")
 
 				# まだタイマーをセットしてない
 				if washer_timer==WASHER_TIMER_OFF:
@@ -565,7 +561,7 @@ def monitor_washer()->None:
 
 		# すでに食器が入っている
 		elif washer_dishes==WASHER_DISHES_DIRTY:
-			g.log("WASHER", "ドア開放を検出（DIRTY）")
+			g.log("MONITOR", "ドア開放を検出（DIRTY）")
 			# 音声は開けた時の１回だけ
 			if old_washer_door == WASHER_DOOR_CLOSE and washer_timer==WASHER_TIMER_OFF:
 				g.talk("ta'ima-no/se'ttowo wasurezuni.")
@@ -573,7 +569,7 @@ def monitor_washer()->None:
 		# 洗浄済みの食器が入っている
 		# 開けたということは、食器を取り出そうとしているタイミングのハズ
 		else:
-			g.log("WASHER", "ドア開放を検出（WASHED）")
+			g.log("MONITOR", "ドア開放を検出（WASHED）")
 
 			# 最初からEMPTYなのと、WASHED→EMPTYになった場合の区別ができないので「タイマー忘れるな」警報につながる・・・。
 			washer_dishes = WASHER_DISHES_WASHED_EMPTY	# 洗浄済みを確認した「空っぽ」
@@ -588,18 +584,18 @@ def monitor_washer()->None:
 	if timer!=WASHER_STATUS_UNKNOWN and old_washer_timer!=timer and old_washer_timer!=WASHER_STATUS_UNKNOWN:
 		# 3.タイマーがオフ（直前までタイマONなら洗浄開始のハズ！！）
 		if timer==WASHER_TIMER_OFF:
-			g.log("WASHER", "洗浄が始まりました")
+			g.log("MONITOR", "洗浄が始まりました")
 			washer_dishes=WASHER_DISHES_WASHED
 
 		# 4.タイマーが2hまたは4h（食器には直接の変化なし）
 		if timer==WASHER_TIMER_2H or timer==WASHER_TIMER_4H:
-			g.log("WASHER","タイマーがセットされました")
+			g.log("MONITOR","タイマーがセットされました")
 			g.talk("ta'ima-ga se'tto/sare'masita.")
 			g.talk("korede' hitoa'nsin de'su.")
 			need_to_notice_timer_set = True
 
-	g.log("WASHER", f"食洗器チェック終了：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
-	g.log("WASHER","")
+	g.log("MONITOR", f"食洗器チェック終了：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
+	g.log("MONITOR","")
 	return
 
 # ------------------------------------------------------------------------------
@@ -619,6 +615,7 @@ def check_washer( call_from_child:bool=False )->bool:
 	"""
 	global washer_dishes, washer_door, washer_timer
 	global _call_from_child
+	global need_to_notice_timer_set
 
 	g.log("WASHER", f"現状認識：{washer_status()}")
 	schedule.clear("check_washer") # 夜の照明を消す前の30分チェックのキャンセル
@@ -781,13 +778,14 @@ def alert_unseen()->None:
 	"""
 	g.set_dialog(PIC_UNSEEN, stop_alert_unseen )
 	g.log("MONITOR", "食洗器が見えないですよ～")
-	g.talk("mie'naizo-")
+	g.talk("shokuse'nkiga mie'naizo-")
 
 def stop_alert_unseen()->None:
 	"""
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("MONITOR","警報終了～")
+	g.talk("mie'ruyouni narima'sita")
 	schedule.clear("alert_unseen")
 	schedule.clear("stop_alert_unseen")
 	g.update_display_immediately()
