@@ -73,8 +73,8 @@ WASHER_DISHES_WASHED_EMPTY = 4 # 洗浄してあることを確認して閉め�
 
 MONITOR_WASHER_INTERVAL_s = 2		# 食洗器監視（撮影）のインターバル
 
-WASHER_DIRTY_DISHES_INTERVAL_s = 10	# 食洗器関係のアラートインターバル
-WASHER_DIRTY_DISHES_TIMER_s = 30	# その連続機関（短くない？）
+WASHER_DIRTY_DISHES_INTERVAL_s	= 60	# 食洗器関係のアラートインターバル
+WASHER_DIRTY_DISHES_TIMER_s 	= 600	# その連続期間（短くない？）
 
 WASHER_UNSEEN_INTERVAL_s = 10		# カメラ視界不良アラートインターバル
 WASHER_UNSEEN_TIMER_s = 300			# その継続期間（ほとんど永久的に）

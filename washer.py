@@ -119,8 +119,9 @@ need_to_notice_timer_set = False
 
 
 # カメラの見通しが悪い時の警報用フラグ
-# 見えていない間に多重コールしないようにしているだけ
-camera_unseen = False
+# １回だけで騒がないようにカウンタにしている
+camera_unseen_count = 0
+CAMERA_UNSEEN_THRESHOLD = 30 # 連続30回見えなかったら怒る
 
 # デバッグ用
 newest_matching_image = ""
@@ -278,7 +279,7 @@ def _matching_one_washer()->Tuple[int, int]:
 	　y : タイマの状態（off/2h/4h/unknown）
 	"""
 	global newest_matching_image, save_matching_flag, cds_status
-	global camera_unseen
+	global camera_unseen_count
 
 	# 食洗器の写真を撮影
 	img   = _capture_washer(full_size=False)		# カラー
@@ -319,15 +320,26 @@ def _matching_one_washer()->Tuple[int, int]:
 		g.log("1WASHER", "判定不能（相関が低すぎる or 相関に差がない）")
 
 		# 警報処理を追加（2024/3/3）
-		#if camera_unseen==False:
-		#	camera_unseen = True
+		#if camera_unseen_count==False:
+		#	camera_unseen_count = True
 		#	start_alert_unseen()
+
+		# 警報処理を改修（2024/3/13）
+		# 若干危ないけど、閾値になった１回だけ警報ルーチンを呼び出す（多重コール防止）
+		camera_unseen_count += 1
+		if camera_unseen_count == CAMERA_UNSEEN_THRESHOLD:
+			start_alert_unseen()
+
 		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
 
-	# すでに見通し警報が鳴っていたら解除する
-	if camera_unseen:
+
+	# ここから先は見えていた（相関が見えている）場合の処理
+
+	# すでにUNSEEN警報が鳴っていたら解除する
+	if camera_unseen_count:
 		g.log("MONITOR","見えない警報解除")
-		camera_unseen = False
+		g.talk("a mie'ruyouni narima'sita.")
+		camera_unseen_count = 0
 		stop_alert_unseen()
 
 
@@ -484,7 +496,6 @@ def monitor_washer()->None:
 	"""
 	global washer_dishes, washer_door, washer_timer
 	global last_closed_door_time, need_to_notice_timer_set
-	global camera_unseen
 
 	start = datetime.datetime.now()		# 処理時間計測
 
@@ -639,11 +650,15 @@ def check_washer( call_from_child:bool=False )->bool:
 
 		# タイマがセットされていない→NG
 		if washer_timer==WASHER_TIMER_OFF:
+	
+			# 子（flower）から呼ばれている場合は騒いでもしょうがないので何もしない
 			if call_from_child==False:
 				g.log("WASHER","食器があるのにタイマーセットされていません！")
-				g.talk( "ta'ima-ga se'ttosareteimasen.")
+				g.talk("ta'ima-ga se'ttosareteimasen.")
 
-			if not call_from_child: start_alert_dirty_dishes() # 最重要機能！
+				# 最重要機能（ここで警報スレッドを起動かけける！）
+				start_alert_dirty_dishes()
+			
 			return False
 
 		# タイマがセットされている→OK音声
@@ -670,10 +685,15 @@ def start_alert_dirty_dishes()->None:
 	汚れた食器＆タイマー未セットの警告ダイアログ
 	"""
 	g.log("DIRTY","汚れ警報開始")
+
+	# まずは単発で鳴らす
 	alert_dirty_dishes()
+
+	# タイマースレッドを起動
 	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds\
 			.do(alert_dirty_dishes).tag("alert_dirty_dishes")
 
+	# 終了用スレッドを起動
 	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds\
 			.do(stop_alert_dirty_dishes).tag("stop_alert_dirty_dishes")
 
@@ -690,7 +710,9 @@ def stop_alert_dirty_dishes()->None:
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("DIRTY","警報終了～")
-	g.talk("ke'ihou tei'si")
+	g.talk("ta'ima- o'sirase shuuryou.")
+
+	# スケジューラのクリア
 	schedule.clear("alert_dirty_dishes")
 	schedule.clear("stop_alert_dirty_dishes")
 	g.update_display_immediately()
