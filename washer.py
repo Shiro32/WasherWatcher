@@ -791,9 +791,11 @@ def stop_alert_unseen()->None:
 	g.update_display_immediately()
 
 # ------------------------------------------------------------------------------
-def preview_washser()->None:
+def preview_washser(min:int)->None:
 	"""
 	カメラのプレビューを表示する
+
+	min: プレビューを自動終了する時間（分）
 
 	・LCDサイズに縮小して表示
 	・実際に撮影される写真と同じアスペクトレシオ
@@ -823,6 +825,9 @@ def preview_washser()->None:
 	# 撮影開始
 	picam.start()
 
+	# 開始時刻
+	st = time.time()
+
 	while True:
 		img = picam.capture_array()
 		img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
@@ -849,7 +854,12 @@ def preview_washser()->None:
 		draw.text( (40, 210), "左側のボタンで終了", font=normalFont, fill="black" )
 
 		g.epd_display()
+
+		# ボタンで終了
 		if g.front_button_status()==PUSH_1CLICK: break
+
+		# タイマで終了
+		if time.time()-st >= min*60: break
 
 	# カメラを停める
 	picam.stop()

@@ -254,7 +254,7 @@ def draw_washer_status()->None:
 def _print_one(label:str, msg:str):
 	global _dev_print_y
 
-	g.draw_main.text((0, _dev_print_y), f"{label:6s}:{msg}", font=normal_font30, fill="red")
+	g.draw_main.text((0, _dev_print_y), f"{label:6s}:{msg}", font=normal_font24, fill="red")
 #	g.draw_main.text( (0, _dev_print_y), "{:12}: {}".format(label,msg), font=info_content_font, fill="black" )
 	_dev_print_y += _dev_print_h+5
 
@@ -361,7 +361,7 @@ def init_at_boot()->None:
 	g.talk( "hoge" )
 
 	#プレビュー
-	#washer.preview_washser()
+	washer.preview_washser(5)
 
 # ------------------------------- main -------------------------------
 if __name__ == "__main__":
