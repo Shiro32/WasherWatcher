@@ -362,6 +362,7 @@ def init_at_boot()->None:
 
 	#プレビュー
 	washer.preview_washser(5)
+	g.reset_front_button_status()
 
 # ------------------------------- main -------------------------------
 if __name__ == "__main__":

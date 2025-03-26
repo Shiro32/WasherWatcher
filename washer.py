@@ -44,6 +44,7 @@
 # ■履歴
 # 2024/11/27 新規作成
 
+from random import randrange as rnd
 import time
 import datetime
 import cv2
@@ -120,13 +121,13 @@ need_to_notice_timer_set = False
 
 # カメラの見通しが悪い時の警報用フラグ
 # １回だけで騒がないようにカウンタにしている
-camera_unseen_count = 0
-CAMERA_UNSEEN_THRESHOLD = 30 # 連続30回見えなかったら怒る
+camera_unseen_count		= 0
+CAMERA_UNSEEN_THRESHOLD = 60 # 連続30回見えなかったら怒る
 
 # デバッグ用
-newest_matching_image = ""
-save_matching_flag = False
-save_matching_flag2 = False
+newest_matching_image 	= ""
+save_matching_flag 		= False
+save_matching_flag2 	= False
 
 # ------------------------------------------------------------------------------
 def init_washer():
@@ -336,11 +337,12 @@ def _matching_one_washer()->Tuple[int, int]:
 	# ここから先は見えていた（相関が見えている）場合の処理
 
 	# すでにUNSEEN警報が鳴っていたら解除する
-	if camera_unseen_count:
+	if camera_unseen_count >= CAMERA_UNSEEN_THRESHOLD:
 		g.log("MONITOR","見えない警報解除")
 		g.talk("a mie'ruyouni narima'sita.")
-		camera_unseen_count = 0
 		stop_alert_unseen()
+
+	camera_unseen_count = 0
 
 
 	# タイマーLED判定に移る	
@@ -690,12 +692,10 @@ def start_alert_dirty_dishes()->None:
 	alert_dirty_dishes()
 
 	# タイマースレッドを起動
-	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds\
-			.do(alert_dirty_dishes).tag("alert_dirty_dishes")
+	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_dirty_dishes).tag("alert_dirty_dishes")
 
 	# 終了用スレッドを起動
-	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds\
-			.do(stop_alert_dirty_dishes).tag("stop_alert_dirty_dishes")
+	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds.do(stop_alert_dirty_dishes).tag("stop_alert_dirty_dishes")
 
 def alert_dirty_dishes()->None:
 	"""
@@ -724,11 +724,8 @@ def start_alert_timer_ok()->None:
 	"""
 	g.log("TIMER","OK警報開始")
 	alert_timer_ok()
-	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds\
-			.do(alert_timer_ok).tag("alert_timer_ok")
-
-	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds\
-			.do(stop_alert_timer_ok).tag("stop_alert_timer_ok")
+	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_timer_ok).tag("alert_timer_ok")
+	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds.do(stop_alert_timer_ok).tag("stop_alert_timer_ok")
 
 def alert_timer_ok()->None:
 	"""
@@ -755,11 +752,8 @@ def start_alert_washed()->None:
 	"""
 	g.log("TIMER","警報開始")
 	alert_washed()
-	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds\
-			.do(alert_washed).tag("alert_washed")
-
-	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds\
-			.do(stop_alert_washed).tag("stop_alert_washed")
+	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_washed).tag("alert_washed")
+	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds.do(stop_alert_washed).tag("stop_alert_washed")
 
 def alert_washed()->None:
 	"""
@@ -788,11 +782,8 @@ def start_alert_unseen()->None:
 	"""
 	g.log("MONITOR","見えない")
 	alert_unseen()
-	schedule.every(WASHER_UNSEEN_INTERVAL_s).seconds\
-			.do(alert_unseen).tag("alert_unseen")
-
-	schedule.every(WASHER_UNSEEN_TIMER_s).seconds\
-			.do(stop_alert_unseen).tag("stop_alert_unseen")
+	schedule.every(WASHER_UNSEEN_INTERVAL_s).seconds.do(alert_unseen).tag("alert_unseen")
+	schedule.every(WASHER_UNSEEN_TIMER_s).seconds.do(stop_alert_unseen).tag("stop_alert_unseen")
 
 def alert_unseen()->None:
 	"""
@@ -800,14 +791,16 @@ def alert_unseen()->None:
 	"""
 	g.set_dialog(PIC_UNSEEN, stop_alert_unseen )
 	g.log("MONITOR", "食洗器が見えないですよ～")
-	g.talk("shokuse'nkiga mie'naizo-")
+	g.talk([
+		"shokuse'nkiga mie'masen",
+		"suimase'nga doi'te/moraema'suka",
+		"mie'naina-"][rnd(3)])
 
 def stop_alert_unseen()->None:
 	"""
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("MONITOR","警報終了～")
-	g.talk("mie'ruyouni narima'sita")
 	schedule.clear("alert_unseen")
 	schedule.clear("stop_alert_unseen")
 	g.update_display_immediately()
