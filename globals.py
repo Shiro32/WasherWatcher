@@ -567,20 +567,36 @@ def check_sleep_immediately()->None:
 	check_sleep()
 
 
+
+
 def check_sleep()->None:
 	global sleep_mode, sleep_timer
 
-	old_sleep_mode = sleep_mode
-	sleep_timer+=1
+	# 不安定なCDSの多頻度監視機構（washerのドア・タイマと同じ市区委m）
+	# 現在のCDSを読み込む
+	cds = pi.read(CDS_PIN)
 
-	# まずは多頻度防止用
-	if sleep_timer < SLEEP_CHECK_INTERVAL: return
+	# 前回と同じ値なら頻度UP
+	if cds==check_sleep.prev_cds:
+		check_sleep.counter += 1
+
+		# 頻度が閾値を超えたら状態変化させる
+		if check_sleep.counter >= 10:
+			check_sleep.current_cds = cds
+		else:
+			check_sleep.counter = 0
+			check_sleep.prev_cds = cds
+
+#	sleep_timer+=1
+
+	## まずは多頻度防止用
+	#if sleep_timer < SLEEP_CHECK_INTERVAL: return
 
 	# 時刻に応じた対応をするため
 	h = datetime.datetime.now().hour
 
 	# 明るい時の処理
-	if pi.read(CDS_PIN)==pigpio.HIGH:
+	if check_sleep.current_cds == pigpio.HIGH:
 		# 直前が夜間モードで、明るくなった時だけ処理
 		# 朝になった or 夜だけど照明をつけた
 		if sleep_mode==SLEEP_MODE_SLEEP:
@@ -628,6 +644,12 @@ def check_sleep()->None:
 			sleep_mode = SLEEP_MODE_SLEEP
 
 	setBackLight( EPD_BACKLIGHT_SW_MAIN, True if sleep_mode==SLEEP_MODE_WAKEUP else False )
+
+# check_sleepの中で使うstatic変数
+# CDSの多頻度監視用に前値を保持しておく
+check_sleep.prev_cds = 0
+check_sleep.current_cds = 0
+check_sleep.counter = 0
 
 
 def time_mode_check()->None:
