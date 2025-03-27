@@ -548,8 +548,9 @@ def line_notify(msg):
 # 明るさに合わせていろいろ喋らせると楽しいので、徐々に充実中
 # CDSセンサーで明るさを読み取って、at3011でしゃべらせる
 sleep_mode	= SLEEP_MODE_WAKEUP
-SLEEP_CHECK_INTERVAL = 60*5 / TIMER_TICK # 秒
+SLEEP_CHECK_INTERVAL = 15*60 / TIMER_TICK # 秒
 sleep_timer	= SLEEP_CHECK_INTERVAL - 10/TIMER_TICK
+sleep_timer = 0
 
 def short_wakeup()->None:
 	global sleep_mode, sleep_timer
