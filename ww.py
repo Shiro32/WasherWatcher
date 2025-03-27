@@ -254,7 +254,7 @@ def draw_washer_status()->None:
 def _print_one(label:str, msg:str):
 	global _dev_print_y
 
-	g.draw_main.text((0, _dev_print_y), f"{label:6s}:{msg}", font=normal_font24, fill="red")
+	g.draw_main.text((0, _dev_print_y), f"{label:6s}:{msg}", font=normal_font20, fill="red")
 #	g.draw_main.text( (0, _dev_print_y), "{:12}: {}".format(label,msg), font=info_content_font, fill="black" )
 	_dev_print_y += _dev_print_h+5
 
@@ -369,12 +369,13 @@ if __name__ == "__main__":
 
 	g.log("MAIN", "ようやく起動完了！")
 
+	# まずは各種初期化を行う
 	init_at_boot()
 
 	# ここからメインルーチン
 	try:
 		while True:
-			time.sleep(TIMER_TICK)  # 最小時間単位
+			time.sleep(TIMER_TICK)  # 最小時間単位(50ms)
 			system_tick += 1
 			schedule.run_pending()
 
@@ -383,6 +384,10 @@ if __name__ == "__main__":
 
 			# ダイアログ表示時のボタン処理
 			g.check_dialog()
+
+			# お休みモード処理
+			# 以前は過去の名残でrain内のチェックから呼び出していたがメインに移行
+			g.check_sleep()
 
 			# 雨チェックが頻繁過ぎるのでとりあえずオフ（2023/9/7）
 			rain.check_weather()	# 雨降りチェック（tweliteのGPIOポーリングでやっている）
@@ -418,20 +423,20 @@ if __name__ == "__main__":
 				# プレビュー
 				washer.preview_washser()
 
-			# スライドスイッチをポーリングで検出してシャットダウン
-			#if pi.read(SLIDE_SW_PIN)==pigpio.HIGH:
-			#	g.talk( voice_shutdown1, True)
-			#	g.clear_image()
-			#	g.image_buf.paste( ICON_BYE_MAC, (0,0) )
-			#	g.epd_display( False )
+			# スライドスイッチで電源を切るとするか・・・。
+			if pi.read(SLIDE_SW_PIN)==pigpio.HIGH:
+				g.talk( voice_shutdown1, True)
+				g.clear_image()
+				g.image_buf.paste( ICON_BYE_MAC, (0,0) )
+				g.epd_display( False )
 
-			#	g.log( "SHUTDOWN" )
-			#	g.talk( voice_shutdown2, True )
-			#	g.talk( voice_shutdown3, False )
+				g.log( "SHUTDOWN" )
+				g.talk( voice_shutdown2, True )
+				g.talk( voice_shutdown3, False )
 
-			#	pi.stop()
-			#	os.system( "sudo shutdown now" )
-			#	sys.exit()
+				pi.stop()
+				os.system( "sudo shutdown now" )
+				sys.exit()
 
 
 	except KeyboardInterrupt:

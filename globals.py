@@ -26,6 +26,8 @@ bus = smbus.SMBus(1)
 
 
 import washer
+import comm
+
 # --------------------- 明るさに応じたvoice ---------------------
 
 # 夜間に明るくなったタイミング
@@ -476,7 +478,7 @@ def talk(message, wait=True):
 	# 音声SWをオフにしていても解除するかは賛否両論か・・・？
 	reset_screen_saver()
 
-	if pi.read(SLIDE_SW_PIN)==pigpio.HIGH : return
+#	if pi.read(SLIDE_SW_PIN)==pigpio.HIGH : return
 
 	#h = datetime.datetime.now().hour
 	#if h<6: return
@@ -547,50 +549,50 @@ def line_notify(msg):
 # 単に夜間モードは輝度を下げてマナーモードにするだけだったが、
 # 明るさに合わせていろいろ喋らせると楽しいので、徐々に充実中
 # CDSセンサーで明るさを読み取って、at3011でしゃべらせる
+# メインルーチンから1tick（50ms）ごとに高頻度で呼び出される
+
 sleep_mode	= SLEEP_MODE_WAKEUP
-SLEEP_CHECK_INTERVAL = 15*60 / TIMER_TICK # 秒
-sleep_timer	= SLEEP_CHECK_INTERVAL - 10/TIMER_TICK
-sleep_timer = 0
+SLEEP_CHECK_FREQ = 2/TIMER_TICK
 
 def short_wakeup()->None:
-	global sleep_mode, sleep_timer
+	global sleep_mode
 
-	sleep_timer = SLEEP_CHECK_INTERVAL - (10/TIMER_TICK) # 秒
 	sleep_mode = SLEEP_MODE_WAKEUP
 	reset_screen_saver()
 	setBackLight( EPD_BACKLIGHT_SW_MAIN, True )
 
 def check_sleep_immediately()->None:
-	global sleep_timer
-
-	sleep_timer = 9999999
-	check_sleep()
+	check_sleep(True)
 
 
+def check_sleep( check_now:bool=False )->None:
+	global sleep_mode
 
-
-def check_sleep()->None:
-	global sleep_mode, sleep_timer
-
-	# 不安定なCDSの多頻度監視機構（washerのドア・タイマと同じ市区委m）
-	# 現在のCDSを読み込む
+	# まず、現在のCDSを読み込む
 	cds = pi.read(CDS_PIN)
 
-	# 前回と同じ値なら頻度UP
-	if cds==check_sleep.prev_cds:
-		check_sleep.counter += 1
+	# 多頻度監視機構をバイパス
+	if check_now:
+		# 強制的に現在計測値にしてしまう
+		check_sleep.prev_cds 	= cds
+		check_sleep.current_cds = cds
+		check_sleep.counter 	= 0
 
-		# 頻度が閾値を超えたら状態変化させる
-		if check_sleep.counter >= 10:
-			check_sleep.current_cds = cds
-		else:
-			check_sleep.counter = 0
-			check_sleep.prev_cds = cds
+	else:
+		# 不安定なCDSの多頻度監視機構（washerのドア・タイマと同じ仕組み）
+		# 前回と同じ値なら頻度UP
+		if cds == check_sleep.prev_cds:
+			check_sleep.counter += 1
 
-#	sleep_timer+=1
+			# 頻度が閾値を超えたら状態変化させる
+			if check_sleep.counter >= SLEEP_CHECK_FREQ:
+				check_sleep.current_cds = cds
 
-	## まずは多頻度防止用
-	#if sleep_timer < SLEEP_CHECK_INTERVAL: return
+			# 前回と異なる状態なら頻度を０にリセット
+			# prevは変えるけど、currentはそのまま維持
+			else:
+				check_sleep.counter 	= 0
+				check_sleep.prev_cds 	= cds
 
 	# 時刻に応じた対応をするため
 	h = datetime.datetime.now().hour
@@ -612,9 +614,8 @@ def check_sleep()->None:
 
 			# 夜に部屋に入っただけ
 			else:
-				talk( mabushii_voice[rnd(len(mabushii_voice))])
+				talk( mabushii_voice[rnd(len(mabushii_voice))] )
 
-			sleep_timer = 0
 			sleep_mode = SLEEP_MODE_WAKEUP
 			reset_screen_saver()
 
@@ -638,15 +639,12 @@ def check_sleep()->None:
 				pass
 			else:
 				talk( voice_nero )
-				# トンネルモードを作りたい
 
-			sleep_timer = 0
 			sleep_mode = SLEEP_MODE_SLEEP
 
 	setBackLight( EPD_BACKLIGHT_SW_MAIN, True if sleep_mode==SLEEP_MODE_WAKEUP else False )
 
-# check_sleepの中で使うstatic変数
-# CDSの多頻度監視用に前値を保持しておく
+# check_sleepの中で使うstatic変数。CDSの多頻度監視用に前値を保持しておく
 check_sleep.prev_cds = 0
 check_sleep.current_cds = 0
 check_sleep.counter = 0

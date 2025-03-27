@@ -658,7 +658,7 @@ def check_washer( call_from_child:bool=False )->bool:
 				g.log("WASHER","食器があるのにタイマーセットされていません！")
 				g.talk("ta'ima-ga se'ttosareteimasen.")
 
-				# 最重要機能（ここで警報スレッドを起動かけける！）
+				# 最重要機能（ここで警報スレッドを起動する！）
 				start_alert_dirty_dishes()
 			
 			return False
@@ -672,6 +672,9 @@ def check_washer( call_from_child:bool=False )->bool:
 				if call_from_child==False:
 					# CDS感度過剰でここが大量にコールされてしまう・・・。
 					# １晩で１回に制限したいところで、発声フラグを作るか？
+
+					# 汚れ警報発令中にタイマーセットすることもあるため
+					stop_alert_dirty_dishes()
 
 					g.log("WASHER","食器が入っていて、タイマーはセットされています！")
 					g.talk( "shokuse'nkiwa daijo'ubu desu.")
@@ -691,10 +694,8 @@ def start_alert_dirty_dishes()->None:
 	# まずは単発で鳴らす
 	alert_dirty_dishes()
 
-	# タイマースレッドを起動
+	# 定期音声＆アラーム終了のタイマー２つを起動
 	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_dirty_dishes).tag("alert_dirty_dishes")
-
-	# 終了用スレッドを起動
 	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds.do(stop_alert_dirty_dishes).tag("stop_alert_dirty_dishes")
 
 def alert_dirty_dishes()->None:
@@ -710,7 +711,6 @@ def stop_alert_dirty_dishes()->None:
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("DIRTY","警報終了～")
-	g.talk("ta'ima- o'sirase shuuryou.")
 
 	# スケジューラのクリア
 	schedule.clear("alert_dirty_dishes")
@@ -740,7 +740,6 @@ def stop_alert_timer_ok()->None:
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("TIMER","警報終了～")
-#	g.talk("ke'ihou tei'si")
 	schedule.clear("alert_timer_ok")
 	schedule.clear("stop_alert_timer_ok")
 	g.update_display_immediately()
@@ -769,7 +768,6 @@ def stop_alert_washed()->None:
 	ボタンでダイアログ消したときの扱い
 	"""
 	g.log("TIMER","終了～")
-	#g.talk("pipi")
 	schedule.clear("alert_washed")
 	schedule.clear("stop_alert_washed")
 	g.update_display_immediately()
@@ -781,7 +779,10 @@ def start_alert_unseen()->None:
 	ひょっとすると、頻度監視してやった方がいいかもしれない
 	"""
 	g.log("MONITOR","見えない")
-	alert_unseen()
+	g.talk("shokuse'nkiga mie'masen")
+	g.set_dialog(PIC_UNSEEN, stop_alert_unseen )
+#	alert_unseen()
+
 	schedule.every(WASHER_UNSEEN_INTERVAL_s).seconds.do(alert_unseen).tag("alert_unseen")
 	schedule.every(WASHER_UNSEEN_TIMER_s).seconds.do(stop_alert_unseen).tag("stop_alert_unseen")
 
@@ -791,10 +792,15 @@ def alert_unseen()->None:
 	"""
 	g.set_dialog(PIC_UNSEEN, stop_alert_unseen )
 	g.log("MONITOR", "食洗器が見えないですよ～")
-	g.talk([
+
+	msg = [
 		"shokuse'nkiga mie'masen",
 		"suimase'nga doi'te/moraema'suka",
-		"mie'naina-"][rnd(3)])
+		"mie'naina-",
+		"cho'ttodeiinode doi'te/moraema'suka",
+		"mie'naito koma'runaa"
+		]
+	g.talk( msg[rnd(len(msg))] )
 
 def stop_alert_unseen()->None:
 	"""
@@ -824,7 +830,7 @@ def preview_washser(min:int)->None:
 	g.epd_display
 
 	g.log("WASHER","プレビュー")
-	g.talk("ka'merano mu'kiwo/chouseisimasu.")
+	g.talk("ka'merano mu'kiwo/chouse'i/sitekudasa'i.")
 	g.talk("bota'nde/shu'uryou/de'su")
 
 	# いったん、カメラを停める

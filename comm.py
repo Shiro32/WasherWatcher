@@ -142,7 +142,7 @@ def _receive_message_thread()->None:
 			g.log("COMM RESV", f"その他のエラーが発生しました: {e}")
 			break
 
-	# 通信をやめてスレッドを終了する
+	# なんらかのエラーならwhileを脱出して、通信をやめてスレッドを終了する
 	comm_socket.close()
 	comm_status = "close"
 
@@ -161,6 +161,7 @@ def _send_message_thread( msg:str ):
 			g.log("COMM SEND","flowerの接続がありません。")
 		else:
 			comm_socket.sendall(f"{msg}".encode())
+			# 送信が無事に終了したのでコネクションを維持したままリターン
 			return
 
 	except BrokenPipeError:
@@ -196,7 +197,7 @@ def _make_connection_thread():
 			g.log("COMM CONNECT", "接続完了！")
 			comm_status = "open"
 
-			# 受信用スレッドを起動
+			# コネクションができたので、受信用スレッドを起動
 			# （送信用スレッドは実際にメッセージ送信時に起動する）
 			threading.Thread(target=_receive_message_thread, args=()).start() 
 
@@ -212,7 +213,6 @@ def send_message( msg:str )->None:
 	msg: 送信文字列
 	"""
 
-	global comm_socket
 	threading.Thread(target=_send_message_thread, args=(msg,)).start()
 
 # ------------------------------------------------------------------------------
