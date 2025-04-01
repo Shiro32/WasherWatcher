@@ -122,7 +122,7 @@ need_to_notice_timer_set = False
 # カメラの見通しが悪い時の警報用フラグ
 # １回だけで騒がないようにカウンタにしている
 camera_unseen_count		= 0
-CAMERA_UNSEEN_THRESHOLD = 60 # 連続30回見えなかったら怒る
+CAMERA_UNSEEN_THRESHOLD = 300 # 連続30回見えなかったら怒る。正確な時間はできないが、大体1回＝1秒
 
 # デバッグ用
 newest_matching_image 	= ""
@@ -291,6 +291,8 @@ def _matching_one_washer()->Tuple[int, int]:
 
 	old_cds_status = cds_status
 
+	# TODO: ここでのCDSは生値（変動しやすい）
+	# TODO: global.pyの昼夜判定では多頻度監視をやっているので、そちらを使う手もある
 	if pi.read(CDS_PIN)==pigpio.HIGH:		# 明るい場合
 		cds="明るい"
 		cds_status = True
@@ -320,11 +322,6 @@ def _matching_one_washer()->Tuple[int, int]:
 	if max(corr_cl, corr_op) < thr or abs(corr_cl - corr_op) < 0.1:
 		g.log("1WASHER", "判定不能（相関が低すぎる or 相関に差がない）")
 
-		# 警報処理を追加（2024/3/3）
-		#if camera_unseen_count==False:
-		#	camera_unseen_count = True
-		#	start_alert_unseen()
-
 		# 警報処理を改修（2024/3/13）
 		# 若干危ないけど、閾値になった１回だけ警報ルーチンを呼び出す（多重コール防止）
 		camera_unseen_count += 1
@@ -339,7 +336,8 @@ def _matching_one_washer()->Tuple[int, int]:
 	# すでにUNSEEN警報が鳴っていたら解除する
 	if camera_unseen_count >= CAMERA_UNSEEN_THRESHOLD:
 		g.log("MONITOR","見えない警報解除")
-		g.talk("a mie'ruyouni narima'sita.")
+		g.rndtalk( ["a mie'ruyouni narima'sita.","a mie'ta.","gokyo'uryoku ari'gatou/goza'imasiu"] )
+
 		stop_alert_unseen()
 
 	camera_unseen_count = 0
@@ -800,7 +798,7 @@ def alert_unseen()->None:
 		"cho'ttodeiinode doi'te/moraema'suka",
 		"mie'naito koma'runaa"
 		]
-	g.talk( msg[rnd(len(msg))] )
+	g.rndtalk( msg )
 
 def stop_alert_unseen()->None:
 	"""

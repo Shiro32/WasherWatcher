@@ -497,6 +497,10 @@ def talk(message, wait=True):
 	finally:
 		return
 
+def rndtalk(messages, wait=True):
+	"""複数の文字レスリストの中の一つを乱数で選んでしゃべる
+	"""
+	talk( messages[rnd(len(messages))], wait )
 
 def talks( messages )->None:
 	"""複数のメッセージを連続して喋らせる
