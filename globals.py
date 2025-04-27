@@ -645,8 +645,8 @@ def check_sleep( check_now:bool=False )->None:
 	setBackLight( EPD_BACKLIGHT_SW_MAIN, True if sleep_mode==SLEEP_MODE_WAKEUP else False )
 
 # check_sleepの中で使うstatic変数。CDSの多頻度監視用に前値を保持しておく
-check_sleep.prev_cds = 0
-check_sleep.current_cds = 0
+check_sleep.prev_cds	= pigpio.HIGH
+check_sleep.current_cds	= pigpio.HIGH
 check_sleep.counter = 0
 
 
