@@ -565,6 +565,7 @@ def monitor_washer()->None:
 					g.talk("ta'ima-no/se'ttowo wasurena'ide.")
 
 					# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
+					schedule.clear("check_washer")
 					schedule.every(10).minutes.do(check_washer).tag("check_washer")
 
 				# タイマーセット済み
@@ -605,6 +606,7 @@ def monitor_washer()->None:
 			g.log("MONITOR","タイマーがセットされました")
 			g.talk("ta'ima-ga se'tto/sare'masita.")
 			g.talk("korede' hitoa'nsin de'su.")
+			stop_alert_dirty_dishes()	# もし警報が発動しているなら止める（2025/4/27）
 			need_to_notice_timer_set = True
 
 	g.log("MONITOR", f"食洗器チェック終了：{washer_status()} 【{(datetime.datetime.now()-start).seconds}秒】")
@@ -695,8 +697,8 @@ def start_alert_dirty_dishes()->None:
 	alert_dirty_dishes()
 
 	# 定期音声＆アラーム終了のタイマー２つを起動
-	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_dirty_dishes).tag("alert_dirty_dishes")
-	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds.do(stop_alert_dirty_dishes).tag("stop_alert_dirty_dishes")
+	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_dirty_dishes     ).tag("alert_dirty_dishes"     )
+	schedule.every(WASHER_DIRTY_DISHES_TIMER_s   ).seconds.do(stop_alert_dirty_dishes).tag("stop_alert_dirty_dishes")
 
 def alert_dirty_dishes()->None:
 	"""
@@ -724,8 +726,8 @@ def start_alert_timer_ok()->None:
 	"""
 	g.log("TIMER","OK警報開始")
 	alert_timer_ok()
-	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_timer_ok).tag("alert_timer_ok")
-	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds.do(stop_alert_timer_ok).tag("stop_alert_timer_ok")
+	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_timer_ok     ).tag("alert_timer_ok"     )
+	schedule.every(WASHER_DIRTY_DISHES_TIMER_s   ).seconds.do(stop_alert_timer_ok).tag("stop_alert_timer_ok")
 
 def alert_timer_ok()->None:
 	"""
@@ -751,8 +753,8 @@ def start_alert_washed()->None:
 	"""
 	g.log("TIMER","警報開始")
 	alert_washed()
-	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_washed).tag("alert_washed")
-	schedule.every(WASHER_DIRTY_DISHES_TIMER_s).seconds.do(stop_alert_washed).tag("stop_alert_washed")
+	schedule.every(WASHER_DIRTY_DISHES_INTERVAL_s).seconds.do(alert_washed     ).tag("alert_washed"     )
+	schedule.every(WASHER_DIRTY_DISHES_TIMER_s   ).seconds.do(stop_alert_washed).tag("stop_alert_washed")
 
 def alert_washed()->None:
 	"""
@@ -783,8 +785,8 @@ def start_alert_unseen()->None:
 	g.set_dialog(PIC_UNSEEN, stop_alert_unseen )
 #	alert_unseen()
 
-	schedule.every(WASHER_UNSEEN_INTERVAL_s).seconds.do(alert_unseen).tag("alert_unseen")
-	schedule.every(WASHER_UNSEEN_TIMER_s).seconds.do(stop_alert_unseen).tag("stop_alert_unseen")
+	schedule.every(WASHER_UNSEEN_INTERVAL_s).seconds.do(alert_unseen     ).tag("alert_unseen"     )
+	schedule.every(WASHER_UNSEEN_TIMER_s   ).seconds.do(stop_alert_unseen).tag("stop_alert_unseen")
 
 def alert_unseen()->None:
 	"""

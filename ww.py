@@ -361,7 +361,7 @@ def init_at_boot()->None:
 	g.talk( "mai'do" )
 
 	#プレビュー
-	washer.preview_washser(5)
+#	washer.preview_washser(min=5)
 	g.reset_front_button_status()
 
 # ------------------------------- main -------------------------------
