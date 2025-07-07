@@ -68,16 +68,16 @@ WASHER_TIMER_4H		= 3 # 4時間タイマー
 # 食器
 WASHER_DISHES_EMPTY	= 1
 WASHER_DISHES_DIRTY	= 2
-WASHER_DISHES_WASHED = 3 #洗浄完了（朝に洗浄確認のため）
-WASHER_DISHES_WASHED_EMPTY = 4 # 洗浄してあることを確認して閉めるまで
+WASHER_DISHES_WASHED = 3 		#洗浄完了（朝に洗浄確認のため）
+WASHER_DISHES_WASHED_EMPTY = 4 	# 洗浄してあることを確認して閉めるまで
 
-MONITOR_WASHER_INTERVAL_s = 2		# 食洗器監視（撮影）のインターバル
+MONITOR_WASHER_INTERVAL_s = 2			# 食洗器監視（撮影）のインターバル
 
 WASHER_DIRTY_DISHES_INTERVAL_s	= 60	# 食洗器関係のアラートインターバル
 WASHER_DIRTY_DISHES_TIMER_s 	= 600	# その連続期間（短くない？）
 
-WASHER_UNSEEN_INTERVAL_s = 30		# カメラ視界不良アラートインターバル
-WASHER_UNSEEN_TIMER_s = 300			# その継続期間（ほとんど永久的に）
+WASHER_UNSEEN_INTERVAL_s = 3*60			# カメラ視界不良アラートインターバル
+WASHER_UNSEEN_TIMER_s = 30*60			# その継続期間（ほとんど永久的に）
 
 # --------------------- フロントボタン関係のタイマ ---------------------
 # 各種タイマ（マイクロセカンド単位）
