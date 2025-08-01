@@ -468,6 +468,9 @@ def setBackLight( level:int, mode:bool )->None:
 # wait
 #   True: 喋り終わるまで待つ（デフォルト）
 #   False: 待たない
+#
+# 深夜時間帯にしゃべらせないような新設はしない
+# 呼び出し側の関数で処理すべき
 
 def cb_sound_sw_interrupt(gpio, level, tick)->None:
 	"""サウンドSWの割り込み処理ハンドラ"""

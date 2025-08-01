@@ -535,13 +535,19 @@ def monitor_washer()->None:
 		if old_washer_door == WASHER_DOOR_OPEN:
 			g.log("MONITOR", "ドアがしまりました")
 			g.talk("do'aga sima'rimasita")
+
 			if washer_timer==WASHER_TIMER_OFF:
 				if washer_dishes==WASHER_DISHES_DIRTY:
 					g.talk("ta'ima-no/se'ttowo wasure/na'i/dene'")
 				elif washer_dishes==WASHER_DISHES_WASHED:
-					g.talk("tori'dashi/wasu'reno na'iyouni kiwo'tuketekudasai")
+					g.talk("tori'dashi/wasu're/na'i/dene'")
 			else:
-				g.talk("ta'ima-wa settozumi/na'node ansinsite nema'shou.")
+				# タイマーセット済みの時のメッセージ（時間帯で分ける）
+				g.talk("ta'ima-wa settozumi/de'su. ")
+				h = datetime.datetime.now().hour
+				if 	 0<=h<=5 or 18<=h<=23	:g.talk("oyasumi' nasa'i.")
+				elif 5<h<=11				:g.talk("kyo'umo ichini'chi ganba'rimashou.")
+				else						:g.talk("otukare samadesita.")
 
 	# ドアが開いている
 	else:
