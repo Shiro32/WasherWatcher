@@ -316,7 +316,7 @@ def _matching_one_washer()->Tuple[int, int]:
 	_, corr_op, _, maxLoc_op = cv2.minMaxLoc(result_op)
 	g.log( "1WASHER", f"CDS:{cds} / CL:{corr_cl:.2f} / OP:{corr_op:.2f}" )
 	
-	# OPEN/CLOSEのどちらか判別できないときは諦める
+	# OPEN/CLOSEのどちらか判別できないときは諦めて警告モードに入る
 	# （ケース１）開閉どちらも閾値を下回る場合（人がカメラを邪魔している等）
 	# （ケース２）開閉の差が小さすぎる場合（不鮮明な写真？）
 	if max(corr_cl, corr_op) < thr or abs(corr_cl - corr_op) < 0.1:
@@ -326,9 +326,9 @@ def _matching_one_washer()->Tuple[int, int]:
 		# 若干危ないけど、閾値になった１回だけ警報ルーチンを呼び出す（多重コール防止）
 		camera_unseen_count += 1
 		if camera_unseen_count == CAMERA_UNSEEN_THRESHOLD:
-			start_alert_unseen()
+			start_alert_unseen()								// UNSEEN起動
 
-		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN
+		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN		// 実質的にエラーで戻る
 
 
 	# ここから先は見えていた（相関が見えている）場合の処理
