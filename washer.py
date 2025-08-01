@@ -336,7 +336,7 @@ def _matching_one_washer()->Tuple[int, int]:
 	# すでにUNSEEN警報が鳴っていたら解除する
 	if camera_unseen_count >= CAMERA_UNSEEN_THRESHOLD:
 		g.log("MONITOR","見えない警報解除")
-		g.rndtalk( ["a mie'ruyouni narima'sita.","a mie'ta.","gokyo'uryoku ari'gatou/goza'imasiu"] )
+		g.rndtalk( ["a mie'ruyouni narima'sita.","a mie'ta.","a do'umo."] )
 
 		stop_alert_unseen()
 
@@ -538,7 +538,7 @@ def monitor_washer()->None:
 
 			if washer_timer==WASHER_TIMER_OFF:
 				if washer_dishes==WASHER_DISHES_DIRTY:
-					g.talk("ta'ima-no/se'ttowo wasure/na'i/dene'")
+					g.rndtalk(["ta'ima-no/se'ttowo wasure/na'i/dene'","ta'ima-wo se'tto/site'ne."])
 				elif washer_dishes==WASHER_DISHES_WASHED:
 					g.talk("tori'dashi/wasu're/na'i/dene'")
 			else:
@@ -553,7 +553,7 @@ def monitor_washer()->None:
 	else:
 		# とりあえず開いた事実を告げる（検出後の最初の１回だけ、その後の処理は継続されるので注意！）
 		if old_washer_door == WASHER_DOOR_CLOSE:
-			g.talk("do'aga hira'kimasita")
+			g.rndtalk(["do'aga hira'kimasita","do'aga hira'itaze."])
 			g.log("MONITOR", "ドアが開きました")
 
 		# 食器は入っていない
@@ -566,7 +566,7 @@ def monitor_washer()->None:
 
 				# まだタイマーをセットしてない
 				if washer_timer==WASHER_TIMER_OFF:
-					g.talk("ta'ima-no/se'ttowo wasurena'ide.")
+					g.rndtalk(["ta'ima-no/se'ttowo wasurena'ide.","ta'ima-wo/se'tto/site'ne."])
 
 					# 30分後には念のため確認開始（夜照明を消す前の事前チェックサービス）
 					schedule.clear("check_washer")
@@ -594,7 +594,7 @@ def monitor_washer()->None:
 
 			# 音声は開けた時の１回だけ
 			if old_washer_door == WASHER_DOOR_CLOSE:
-				g.talk("shokki'wa ara'tte/arima'suyo.")
+				g.rndtalk(["shokki'wa ara'tte/arima'suyo.","shokki'wa ara'tte/arumi'taidesuyo."])
 				start_alert_washed()
 
 	# ドア処理終了
@@ -608,8 +608,7 @@ def monitor_washer()->None:
 		# 4.タイマーが2hまたは4h（食器には直接の変化なし）
 		if timer==WASHER_TIMER_2H or timer==WASHER_TIMER_4H:
 			g.log("MONITOR","タイマーがセットされました")
-			g.talk("ta'ima-ga se'tto/sare'masita.")
-			g.talk("korede' hitoa'nsin de'su.")
+			g.rndtalk(["ta'ima-ga se'tto/sare'masita.","tai'ma- se'tto/yo'si"])
 			stop_alert_dirty_dishes()	# もし警報が発動しているなら止める（2025/4/27）
 			need_to_notice_timer_set = True
 
@@ -684,7 +683,6 @@ def check_washer( call_from_child:bool=False )->bool:
 
 					g.log("WASHER","食器が入っていて、タイマーはセットされています！")
 					g.talk( "shokuse'nkiwa daijo'ubu desu.")
-					#g.talk( "a'nsinsite oya'suminasai.")
 
 				if not call_from_child: start_alert_timer_ok()	# いらない気もするが・・・ TODO:
 
@@ -710,7 +708,7 @@ def alert_dirty_dishes()->None:
 	"""
 	g.set_dialog( PIC_DIRTY, stop_alert_dirty_dishes )
 	g.log("ALERT", "タイマーセットされておらんよ")
-	g.talk("abunaizo-")
+	g.rndtalk(["abunaizo-","ta'ima- se'tto/saretena'izo-"])
 
 def stop_alert_dirty_dishes()->None:
 	"""
@@ -803,7 +801,7 @@ def alert_unseen()->None:
 		"shokuse'nkiga mie'masen",
 		"suimase'nga doi'te/moraema'suka",
 		"mie'naina-",
-		"cho'ttodeiinode doi'te/moraema'suka",
+		"shokusen'kiga mie'hen",
 		"mie'naito koma'runaa"
 		]
 	g.rndtalk( msg )
