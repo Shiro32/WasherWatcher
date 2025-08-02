@@ -358,7 +358,7 @@ def init_at_boot()->None:
 	# 初回描画は早めに（ちっとも早くならないけど）
 	g.update_display_immediately()
 #	g.talk( voice_opening2 )
-	g.talk( "mai'do" )
+	g.talk( "mai'do goriyo'u ari'gatou/goza'imasu." )
 
 	#プレビュー
 #	washer.preview_washser(min=5)
