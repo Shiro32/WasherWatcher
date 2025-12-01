@@ -20,7 +20,7 @@
 # 1 NORMAL	標準状態（ドア開閉・食器予測・予約状態）
 # 2 CLOCK	時計のみ
 # 3 USEFUL	各種役立ち情報表示
-# 4 DEVICE_INFO	装置の諸情報（IP、センサ状態など） 
+# 4 DEVICE_INFO	装置の諸情報（IP、センサ状態など） 、ここでクリックするとリセット
 
 # #--------------各種タイミング------------
 #〇計測
@@ -78,7 +78,7 @@ voice_shutdown1		= "gori'you ari'gatou goza'imasita."
 voice_shutdown2		= "sui'cchiwo ki'runowo wasurezuni."
 voice_shutdown3		= "mata'no gori'youwo oma'chisiteorimasu"
 
-voide_reset			= "shokuse'nki/no/jou'taiwo/rise'ttosimasu."
+voice_reset			= "shokuse'nki/no/jou'taiwo/rise'ttosimasu."
 # ------------------------------------------------------------------------------
 # 全体に共通のモード変数など
 update_counter = 0									# 画面更新カウンタ（１分単位）
@@ -359,7 +359,7 @@ def init_at_boot()->None:
 	# 初回描画は早めに（ちっとも早くならないけど）
 	g.update_display_immediately()
 #	g.talk( voice_opening2 )
-	g.talk( "mai'do goriyo'u ari'gatou/goza'imasu." )
+#	g.talk( "mai'do goriyo'u ari'gatou/goza'imasu." )
 
 	#プレビュー
 #	washer.preview_washser(min=5)
@@ -407,7 +407,7 @@ if __name__ == "__main__":
 
 					# デバイス情報モードの時は、各種モードを初期化する
 					if disp_mode==DISP_MODE_DEVICE_INFO:
-						g.talk( voide_reset, True )
+						g.talk( voice_reset, True )
 						washer.rest_washer()
 						time.sleep(1)
 

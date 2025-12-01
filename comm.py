@@ -29,6 +29,7 @@ HOST = '0.0.0.0'
 PORT = 65432
 
 comm_status = "close"	# 通信回線を表す内部変数（socketで見れないのか？）
+#comm_socket = None
 
 # --------------------- 子機とのSOCKET通信 ---------------------
 # 子機から情報が来ると、commモジュールでこれらの値をセット
@@ -188,7 +189,7 @@ def _make_connection_thread():
 	# 一度起動したら決して終了しないで、ずっと通信回線管理
 	while True:
 		#if( comm_status=="close"):
-		if comm_socket is None or comm_status=="close":
+		if comm_status=="close" or comm_socket is None:
 			g.log("COMM CONNECT", "flowerと接続待ち...")
 			comm_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 

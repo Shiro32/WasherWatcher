@@ -338,9 +338,9 @@ def _matching_one_washer()->Tuple[int, int]:
 		# 若干危ないけど、閾値になった１回だけ警報ルーチンを呼び出す（多重コール防止）
 		camera_unseen_count += 1
 		if camera_unseen_count == CAMERA_UNSEEN_THRESHOLD:
-			start_alert_unseen()								// UNSEEN起動
+			start_alert_unseen()								# UNSEEN起動
 
-		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN		// 実質的にエラーで戻る
+		return WASHER_STATUS_UNKNOWN, WASHER_STATUS_UNKNOWN		# 実質的にエラーで戻る
 
 
 	# ここから先は見えていた（相関が見えている）場合の処理
@@ -554,7 +554,7 @@ def monitor_washer()->None:
 				elif washer_dishes==WASHER_DISHES_WASHED:
 					g.talk("tori'dashi/wasu're/na'i/dene'")
 			else:
-				g.rndtalk(["ta'ima-wa settozumi/na'node ansinsite nema'shou.",""ta'ima settozumi/de'su."])
+				g.rndtalk(["ta'ima-wa settozumi/na'node ansinsite nema'shou.","ta'ima settozumi/de'su."])
 
 	# ドアが開いている
 	else:
