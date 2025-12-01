@@ -468,6 +468,9 @@ def setBackLight( level:int, mode:bool )->None:
 # wait
 #   True: 喋り終わるまで待つ（デフォルト）
 #   False: 待たない
+#
+# ほとんどすべての依頼元が自国チェックをしていなかったので、
+# ここで深夜にしゃべらないように改修する（2025/08/01）  
 
 def cb_sound_sw_interrupt(gpio, level, tick)->None:
 	"""サウンドSWの割り込み処理ハンドラ"""
@@ -480,8 +483,9 @@ def talk(message, wait=True):
 
 #	if pi.read(SLIDE_SW_PIN)==pigpio.HIGH : return
 
-	#h = datetime.datetime.now().hour
-	#if h<6: return
+	# 深夜帯うるさい対策登場！（2025/8/1）
+	h = datetime.datetime.now().hour
+	if 1<h<6: return
 
 	# いよいよ喋るけど、まれにエラーが出るのでtry/catch
 	try:

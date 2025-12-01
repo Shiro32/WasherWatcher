@@ -359,7 +359,7 @@ def init_at_boot()->None:
 	# 初回描画は早めに（ちっとも早くならないけど）
 	g.update_display_immediately()
 #	g.talk( voice_opening2 )
-	g.talk( "mai'do" )
+	g.talk( "mai'do goriyo'u ari'gatou/goza'imasu." )
 
 	#プレビュー
 #	washer.preview_washser(min=5)
@@ -430,7 +430,7 @@ if __name__ == "__main__":
 			# 最長ロングプレス（プレビュー）
 			if btn==PUSH_SUPER_LONGPRESS:
 				# プレビュー
-				washer.preview_washser()
+				washer.preview_washser(3)	# 最長3分間
 
 			# スライドスイッチで電源を切るとするか・・・。
 			if pi.read(SLIDE_SW_PIN)==pigpio.HIGH:

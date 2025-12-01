@@ -157,8 +157,10 @@ def _send_message_thread( msg:str ):
 	g.log("COMM SEND", msg )
 
 	try:
-		if not comm_socket: # クライアントの接続が存在しない場合
+		if comm_socket is None: # クライアントの接続が存在しない場合
 			g.log("COMM SEND","flowerの接続がありません。")
+			comm_status = "close"
+			return
 		else:
 			comm_socket.sendall(f"{msg}".encode())
 			# 送信が無事に終了したのでコネクションを維持したままリターン
@@ -185,7 +187,8 @@ def _make_connection_thread():
 
 	# 一度起動したら決して終了しないで、ずっと通信回線管理
 	while True:
-		if( comm_status=="close"):
+		#if( comm_status=="close"):
+		if comm_socket is None or comm_status=="close":
 			g.log("COMM CONNECT", "flowerと接続待ち...")
 			comm_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
