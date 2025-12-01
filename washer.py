@@ -130,7 +130,7 @@ save_matching_flag 		= False
 save_matching_flag2 	= False
 
 # ------------------------------------------------------------------------------
-def init_washer():
+def init_washer()->None:
 	"""
 	アプリ起動時に、wwのinit_bootから１回だけ呼ばれる初期化処理
 	テンプレートの準備、カメラデバイスの初期化など
@@ -145,7 +145,7 @@ def init_washer():
 
 	init_camera()
 
-def init_camera():
+def init_camera()->None:
 	global picam
 
 	picam = Picamera2()
@@ -155,9 +155,21 @@ def init_camera():
 			main={"format": 'XRGB8888', "size": (CAPTURE_WIDTH, CAPTURE_HEIGHT)}))
 	picam.start()
 
-def _read_template(fname:str):
+def _read_template(fname:str)->None:
 	a = cv2.imread(fname)
 	return cv2.cvtColor(a, cv2.COLOR_RGB2GRAY)
+
+
+# ------------------------------------------------------------------------------
+def reset_washer()->None:
+	"""
+	食洗器のモード状態を初期値に戻す
+	特に、皿の状態は類推でしかないので外れた場合はここで初期化する
+	"""
+	washer_dishes	= WASHER_DISHES_EMPTY
+	washer_door		= WASHER_STATUS_UNKNOWN
+	washer_timer	= WASHER_STATUS_UNKNOWN
+
 
 # ------------------------------------------------------------------------------
 def _capture_washer( full_size:bool=False )->np.ndarray:
@@ -541,7 +553,7 @@ def monitor_washer()->None:
 				elif washer_dishes==WASHER_DISHES_WASHED:
 					g.talk("tori'dashi/wasu'reno na'iyouni kiwo'tuketekudasai")
 			else:
-				g.rndtalk(["ta'ima-wa settozumi/na'node ansinsite nema'shou.",""ta'ima settozumi/de'su."])
+				g.rndtalk(["ta'ima-wa settozumi/na'node ansinsite nema'shou.","ta'ima settozumi/de'su."])
 
 	# ドアが開いている
 	else:

@@ -78,6 +78,7 @@ voice_shutdown1		= "gori'you ari'gatou goza'imasita."
 voice_shutdown2		= "sui'cchiwo ki'runowo wasurezuni."
 voice_shutdown3		= "mata'no gori'youwo oma'chisiteorimasu"
 
+voide_reset			= "shokuse'nki/no/jou'taiwo/rise'ttosimasu."
 # ------------------------------------------------------------------------------
 # 全体に共通のモード変数など
 update_counter = 0									# 画面更新カウンタ（１分単位）
@@ -403,6 +404,14 @@ if __name__ == "__main__":
 
 			if btn==PUSH_1CLICK:
 				if g.dialog_status()==False:
+
+					# デバイス情報モードの時は、各種モードを初期化する
+					if disp_mode==DISP_MODE_DEVICE_INFO:
+						g.talk( voide_reset, True )
+						washer.rest_washer()
+						time.sleep(1)
+
+					# 現在の食洗器の状態を読み上げる
 					g.update_display_immediately()
 #					g.front_button_sound()
 					washer.washer_voices()
@@ -418,7 +427,7 @@ if __name__ == "__main__":
 				g.update_display_immediately()
 
 
-			# 最長ロングプレス（電源オフ）
+			# 最長ロングプレス（プレビュー）
 			if btn==PUSH_SUPER_LONGPRESS:
 				# プレビュー
 				washer.preview_washser()
