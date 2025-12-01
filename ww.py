@@ -408,7 +408,7 @@ if __name__ == "__main__":
 					# デバイス情報モードの時は、各種モードを初期化する
 					if disp_mode==DISP_MODE_DEVICE_INFO:
 						g.talk( voice_reset, True )
-						washer.rest_washer()
+						washer.reset_washer()
 						time.sleep(1)
 
 					# 現在の食洗器の状態を読み上げる
