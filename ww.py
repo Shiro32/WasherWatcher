@@ -398,14 +398,16 @@ if __name__ == "__main__":
 			if( g.update_display_immediately_flag ):
 				update_display()
 
-			# 1クリック（警報なっていたら止めるとか）
-			# 1クリック処理を引き受けそうな関数を呼び出してからクリア
+
+			# ボタン処理開始（まずステータス入手）
 			btn = g.front_button_status()
 
+			# 1クリック（警報なっていたら止めるとか）
 			if btn==PUSH_1CLICK:
 				if g.dialog_status()==False:
 
-					# デバイス情報モードの時は、各種モードを初期化する
+					# デバイス情報モードの時は、各種状態変数を初期化する
+					# タイマー使わなかったり、インビジブル状態で洗浄した時などの対策
 					if disp_mode==DISP_MODE_DEVICE_INFO:
 						g.talk( voice_reset, True )
 						washer.reset_washer()
@@ -422,7 +424,7 @@ if __name__ == "__main__":
 				g.front_button_sound()
 				g.reset_front_button_status()
 
-				# 現在の次のモードへ遷移
+				# 現在の次のモードへ遷移（といっても、標準とデバイス情報の２種類）
 				disp_mode = [DISP_MODE_NORMAL, DISP_MODE_DEVICE_INFO][(disp_mode+1)%2]
 				g.update_display_immediately()
 

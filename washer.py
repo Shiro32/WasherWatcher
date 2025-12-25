@@ -73,7 +73,7 @@ TEMP_NIGHT_MATCHING_THRESHOLD	= 0.75	# OPEN/CLOSEどちらもこれを下回る�
 MATCHING_FREQ  			= 2		# ノイズ対策で多頻度監視する回数
 MATCHING_TIMER4_FREQ	= 20	# 特にLED4がすぐに消えちゃうので、超念入りに頻度監視する
 
-TEMP_TIMER_LED_RATIO_THREDHOLF	= 1.20
+TEMP_TIMER_LED_RATIO_THRESHOLD	= 1.20
 TEMP_TIMER_LED_THRESHOLD = 55	# LED点灯とみなす輝度(暗い＝５０、明るい＝６０)
 
 # 食洗器ドアが開放中と認識する秒数
@@ -166,6 +166,8 @@ def reset_washer()->None:
 	食洗器のモード状態を初期値に戻す
 	特に、皿の状態は類推でしかないので外れた場合はここで初期化する
 	"""
+	global washer_dishes, washer_door, washer_timer
+
 	washer_dishes	= WASHER_DISHES_EMPTY
 	washer_door		= WASHER_STATUS_UNKNOWN
 	washer_timer	= WASHER_STATUS_UNKNOWN
@@ -412,7 +414,7 @@ def _matching_one_washer()->Tuple[int, int]:
 	# ようやくLED判定
 	# ①高得点領域がある
 	if (max(c2,c4) > TEMP_TIMER_LED_THRESHOLD) or (cr>1.5 and max(c2,c4)>20) :
-		if cr>TEMP_TIMER_LED_RATIO_THREDHOLF:
+		if cr>TEMP_TIMER_LED_RATIO_THRESHOLD:
 			# どちらかだけが高得点
 			timer = WASHER_TIMER_2H if c2>c4 else WASHER_TIMER_4H
 		else:
